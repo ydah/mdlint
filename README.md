@@ -1,38 +1,177 @@
 # Mdlint
 
-TODO: Delete this and the text below, and describe your gem
+A Pure Ruby Markdown linter and formatter. No external dependencies required.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/mdlint`. To experiment with that code, run `bin/console` for an interactive prompt.
+## Features
+
+- **Pure Ruby** - No C extensions, Rust extensions, or external dependencies
+- **Linting** - Detect common Markdown issues with configurable rules
+- **Formatting** - Automatically format Markdown files for consistency
+- **CLI** - Command-line interface for easy integration into workflows
+- **Configuration** - YAML configuration file support
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add this line to your application's Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem 'mdlint'
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+And then execute:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+bundle install
+```
+
+Or install it yourself as:
+
+```bash
+gem install mdlint
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+### Command Line
+
+Format Markdown files in place:
+
+```bash
+mdlint README.md docs/
+```
+
+Check if files are formatted (useful for CI):
+
+```bash
+mdlint --check README.md
+```
+
+Show diff of changes:
+
+```bash
+mdlint --diff README.md
+```
+
+### Options
+
+```
+Usage: mdlint [options] [paths...]
+
+Options:
+    -c, --check              Check if files are formatted, exit with error if not
+    -d, --diff               Show diff of changes
+    -q, --quiet              Suppress output
+    -e, --exclude PATTERN    Exclude files matching pattern
+    -w, --wrap MODE          Paragraph wrapping: keep (default), no, or INTEGER
+        --number             Use consecutive numbering for ordered lists
+        --end-of-line MODE   End of line: lf (default), crlf, keep
+    -v, --version            Show version
+    -h, --help               Show help
+```
+
+### Ruby API
+
+```ruby
+require 'mdlint'
+
+# Format a string
+formatted = Mdlint.format("# Hello World")
+
+# Format a file
+Mdlint.format_file("README.md")
+
+# Parse to tokens
+tokens = Mdlint.parse("# Hello World")
+
+# Lint a string
+violations = Mdlint.lint("# Heading\n\n\n\nParagraph")
+violations.each { |v| puts v }
+
+# Lint a file
+violations = Mdlint.lint_file("README.md")
+```
+
+### Configuration
+
+Create a `.mdlint.yml` file in your project root:
+
+```yaml
+# Check mode (don't modify files)
+check: false
+
+# Quiet mode (suppress output)
+quiet: false
+
+# Exclude patterns
+exclude:
+  - "vendor/**/*.md"
+  - "node_modules/**/*.md"
+```
+
+## Lint Rules
+
+| Rules |
+|-------------|
+| Heading levels should increment by one |
+| Heading style should be consistent (ATX) |
+| No trailing spaces |
+| No multiple consecutive blank lines |
+| First line should be a top-level heading |
+
+## Formatting Style (mdformat compatible)
+
+mdlint follows the [mdformat](https://github.com/hukkin/mdformat) style:
+
+| Element | Style |
+|---------|-------|
+| Headings | ATX style only (`#`) |
+| Bullet lists | Hyphen (`-`), alternating for nested |
+| Ordered lists | All items use `1.` (minimizes diffs) |
+| Code blocks | Fenced style (`` ``` ``) |
+| Horizontal rules | 70 underscores |
+| Hard breaks | Backslash (`\`) |
+| Line endings | LF (configurable) |
+| Reference links | Converted to inline links |
+
+## Supported Markdown Elements
+
+### Block Elements
+
+- ATX headings (`# Heading`)
+- Setext headings (converted to ATX)
+- Paragraphs
+- Bullet lists (`-`, `*`, `+`)
+- Ordered lists (`1.`, `2.`)
+- Blockquotes (`>`)
+- Fenced code blocks (`` ``` ``)
+- Indented code blocks (converted to fenced)
+- Horizontal rules (`---`, `***`, `___`)
+- HTML blocks
+- Reference definitions
+
+### Inline Elements
+
+- Bold (`**text**`, `__text__`)
+- Italic (`*text*`, `_text_`)
+- Inline code (`` `code` ``)
+- Links (`[text](url)`)
+- Reference links (`[text][ref]`)
+- Images (`![alt](src)`)
+- Autolinks (`<https://example.com>`)
+- Hard breaks (backslash + newline)
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+bundle install
+bundle exec rspec
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/mdlint.
+Bug reports and pull requests are welcome on GitHub at https://github.com/ydah/mdlint.
 
 ## License
 
