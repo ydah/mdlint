@@ -2,6 +2,7 @@
 
 require "mdlint/cli"
 require "tempfile"
+require "stringio"
 
 RSpec.describe Mdlint::CLI do
   describe "--help" do
@@ -37,6 +38,58 @@ RSpec.describe Mdlint::CLI do
       cli = described_class.new(["--check", tempfile.path])
       expect { cli.run }.to raise_error(SystemExit) do |error|
         expect(error.status).to eq(1)
+      end
+    end
+  end
+
+  describe "stdin processing" do
+    it "formats stdin when no paths are provided" do
+      original_stdin = $stdin
+      $stdin = StringIO.new("#  Heading\n")
+
+      expect { described_class.new([]).run }.to output("# Heading\n\n").to_stdout
+    ensure
+      $stdin = original_stdin
+    end
+
+    it "exits with non-zero on --check when stdin differs" do
+      original_stdin = $stdin
+      $stdin = StringIO.new("#  Heading\n")
+
+      expect { described_class.new(["--check"]).run }.to raise_error(SystemExit) do |error|
+        expect(error.status).to eq(1)
+      end
+    ensure
+      $stdin = original_stdin
+    end
+  end
+
+  describe "options" do
+    it "respects --exclude patterns" do
+      Dir.mktmpdir do |dir|
+        included = File.join(dir, "included.md")
+        excluded = File.join(dir, "excluded.md")
+        File.write(included, "#  Title\n")
+        File.write(excluded, "#  Excluded\n")
+
+        cli = described_class.new(["--exclude", "**/excluded.md", dir])
+        cli.run
+
+        expect(File.read(included).rstrip).to eq("# Title")
+        expect(File.read(excluded).rstrip).to eq("#  Excluded")
+      end
+    end
+
+    it "warns about missing paths" do
+      expect { described_class.new(["missing.md"]).run }.to output(/does not exist/).to_stderr
+    end
+
+    it "warns and falls back on invalid wrap mode" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "file.md")
+        File.write(path, "Line\n")
+
+        expect { described_class.new(["--wrap", "bad", path]).run }.to output(/Invalid wrap mode/).to_stderr
       end
     end
   end

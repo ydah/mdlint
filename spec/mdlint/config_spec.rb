@@ -35,6 +35,16 @@ RSpec.describe Mdlint::Config do
       expect(options[:exclude]).to eq(["vendor/**/*.md", "node_modules/**/*.md"])
     end
 
+    it "loads options from .mdlint.yaml" do
+      File.write(File.join(tmpdir, ".mdlint.yaml"), "diff: true\nquiet: true\n")
+
+      config = described_class.new(tmpdir)
+      options = config.load
+
+      expect(options[:diff]).to be true
+      expect(options[:quiet]).to be true
+    end
+
     it "finds config in parent directories" do
       subdir = File.join(tmpdir, "sub", "dir")
       FileUtils.mkdir_p(subdir)
@@ -44,6 +54,23 @@ RSpec.describe Mdlint::Config do
       options = config.load
 
       expect(options[:quiet]).to be true
+    end
+
+    it "normalizes exclude as a single string" do
+      File.write(File.join(tmpdir, ".mdlint.yml"), "exclude: docs/*.md\n")
+
+      config = described_class.new(tmpdir)
+      options = config.load
+
+      expect(options[:exclude]).to eq(["docs/*.md"])
+    end
+
+    it "warns and returns defaults on invalid YAML" do
+      File.write(File.join(tmpdir, ".mdlint.yml"), "check: [\n")
+
+      config = described_class.new(tmpdir)
+      expect { config.load }.to output(/Invalid YAML/).to_stderr
+      expect(config.options[:check]).to be false
     end
   end
 
