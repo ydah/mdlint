@@ -1,30 +1,55 @@
-# Mdlint
+<h1 align="center">mdlint</h1>
 
-A Pure Ruby Markdown linter and formatter. No external dependencies required.
+<p align="center">
+  <img src="https://img.shields.io/badge/ruby-%3E%3D%203.2-ruby.svg" alt="Ruby Version"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"><a href="https://github.com/ydah/mdlint/actions/workflows/main.yml"><img src="https://github.com/ydah/mdlint/actions/workflows/main.yml/badge.svg?branch=main" alt="CI"></a><a href="https://badge.fury.io/rb/mdlint"><img src="https://badge.fury.io/rb/mdlint.svg" alt="Gem Version"></a>
+</p>
+
+<p align="center">
+  A pure Ruby Markdown linter and formatter with zero external dependencies
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#quickstart">Quickstart</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#usage">Usage</a> •
+  <a href="#configuration">Configuration</a> •
+  <a href="#lint-rules">Lint Rules</a> •
+  <a href="#formatting-style">Formatting</a>
+</p>
 
 ## Features
 
-- **Pure Ruby** - No C extensions, Rust extensions, or external dependencies
-- **Linting** - Detect common Markdown issues with configurable rules
-- **Formatting** - Automatically format Markdown files for consistency
-- **CLI** - Command-line interface for easy integration into workflows
-- **Configuration** - YAML configuration file support
+- Pure Ruby, no C/Rust extensions or external dependencies
+- Linting with configurable rules and clear violations
+- Auto-formatting that follows mdformat conventions
+- CLI for CI-friendly workflows and local formatting
+- Simple YAML configuration file
+
+## Quickstart
+
+```bash
+gem install mdlint
+
+# format in place
+mdlint README.md docs/
+
+# check-only (CI)
+mdlint --check README.md
+
+# show diffs
+mdlint --diff README.md
+```
 
 ## Installation
 
-Add this line to your application's Gemfile:
-
-```ruby
-gem 'mdlint'
-```
-
-And then execute:
+With Bundler:
 
 ```bash
-bundle install
+bundle add mdlint
 ```
 
-Or install it yourself as:
+Without Bundler:
 
 ```bash
 gem install mdlint
@@ -32,27 +57,15 @@ gem install mdlint
 
 ## Usage
 
-### Command Line
-
-Format Markdown files in place:
+Command line:
 
 ```bash
 mdlint README.md docs/
-```
-
-Check if files are formatted (useful for CI):
-
-```bash
 mdlint --check README.md
-```
-
-Show diff of changes:
-
-```bash
 mdlint --diff README.md
 ```
 
-### Options
+Options:
 
 ```
 Usage: mdlint [options] [paths...]
@@ -69,29 +82,23 @@ Options:
     -h, --help               Show help
 ```
 
-### Ruby API
+Ruby API:
 
 ```ruby
-require 'mdlint'
+require "mdlint"
 
-# Format a string
 formatted = Mdlint.format("# Hello World")
-
-# Format a file
 Mdlint.format_file("README.md")
 
-# Parse to tokens
 tokens = Mdlint.parse("# Hello World")
 
-# Lint a string
 violations = Mdlint.lint("# Heading\n\n\n\nParagraph")
 violations.each { |v| puts v }
 
-# Lint a file
 violations = Mdlint.lint_file("README.md")
 ```
 
-### Configuration
+## Configuration
 
 Create a `.mdlint.yml` file in your project root:
 
@@ -110,17 +117,15 @@ exclude:
 
 ## Lint Rules
 
-| Rules |
-|-------------|
-| Heading levels should increment by one |
-| Heading style should be consistent (ATX) |
-| No trailing spaces |
-| No multiple consecutive blank lines |
-| First line should be a top-level heading |
+Key rules:
 
-## Formatting Style (mdformat compatible)
+- Heading levels should increment by one
+- Heading style should be consistent (ATX)
+- No trailing spaces
+- No multiple consecutive blank lines
+- First line should be a top-level heading
 
-mdlint follows the [mdformat](https://github.com/hukkin/mdformat) style:
+## Formatting Style
 
 | Element | Style |
 |---------|-------|
@@ -135,7 +140,7 @@ mdlint follows the [mdformat](https://github.com/hukkin/mdformat) style:
 
 ## Supported Markdown Elements
 
-### Block Elements
+Block elements:
 
 - ATX headings (`# Heading`)
 - Setext headings (converted to ATX)
@@ -149,7 +154,7 @@ mdlint follows the [mdformat](https://github.com/hukkin/mdformat) style:
 - HTML blocks
 - Reference definitions
 
-### Inline Elements
+Inline elements:
 
 - Bold (`**text**`, `__text__`)
 - Italic (`*text*`, `_text_`)
@@ -162,10 +167,8 @@ mdlint follows the [mdformat](https://github.com/hukkin/mdformat) style:
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests.
-
 ```bash
-bundle install
+bin/setup
 bundle exec rspec
 ```
 
@@ -175,4 +178,4 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/ydah/m
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+MIT License. See `LICENSE.txt` for details.
