@@ -5,6 +5,7 @@ module Mdlint
   type options = Hash[Symbol, untyped]
 
   def self.format: (String source, ?options options) -> String
+  def self.update_toc: (String source, ?options options) -> String
   def self.html: (String source, ?options options) -> String
   def self.parse: (String source, ?options options) -> Array[Token]
   def self.fix: (String source, ?options options) -> String
