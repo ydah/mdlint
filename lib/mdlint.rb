@@ -3,12 +3,15 @@
 require_relative "mdlint/version"
 require_relative "mdlint/dialect"
 require_relative "mdlint/text_width"
+require_relative "mdlint/parallel_runner"
+require_relative "mdlint/cache_store"
 require_relative "mdlint/token"
 require_relative "mdlint/parser"
 require_relative "mdlint/renderer"
 require_relative "mdlint/linter"
 require_relative "mdlint/renderer/html_renderer"
 require_relative "mdlint/lsp"
+require_relative "mdlint/toc"
 
 module Mdlint
   class Error < StandardError; end
@@ -16,7 +19,8 @@ module Mdlint
   class << self
     def format(src, options = {})
       tokens = Parser.parse(src, options)
-      Renderer.render(tokens, options)
+      formatted = Renderer.render(tokens, options)
+      options[:toc] ? Toc.update(formatted, options) : formatted
     end
 
     def html(src, options = {})

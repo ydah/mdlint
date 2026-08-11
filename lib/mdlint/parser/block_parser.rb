@@ -20,6 +20,7 @@ module Mdlint
       HTML_BLOCK_START_4 = /\A {0,3}<![A-Z]/
       HTML_BLOCK_START_5 = /\A {0,3}<!\[CDATA\[/
       HTML_BLOCK_START_6 = /\A {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
+      HTML_BLOCK_START_7 = /\A {0,3}<\/?[A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?(?:\s[^>]*|\/?>)/
       # Reference definition: [label]: url "title"
       REFERENCE_DEF_REGEXP = /\A {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*$/
       FOOTNOTE_DEF_REGEXP = /\A {0,3}\[\^([^\]]+)\]:\s*(.*?)\s*$/
@@ -371,8 +372,11 @@ module Mdlint
           nesting: 1,
           level: state.level,
           markup: ">",
+          attrs: alert_attributes(content_lines),
           map: [start_line, state.line]
         )
+
+        content_lines[0] = content_lines[0].sub(/\A\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i, "") if alert_attributes(content_lines)[:alert]
 
         state.level += 1
         inner_content = content_lines.join("\n")
@@ -628,7 +632,8 @@ module Mdlint
                             line.match?(HTML_BLOCK_START_3) ||
                             line.match?(HTML_BLOCK_START_4) ||
                             line.match?(HTML_BLOCK_START_5) ||
-                            line.match?(HTML_BLOCK_START_6)
+                            line.match?(HTML_BLOCK_START_6) ||
+                            line.match?(HTML_BLOCK_START_7)
 
         start_line = state.line
         content_lines = []
@@ -642,8 +647,10 @@ module Mdlint
           end
         else
           until state.eof?
-            content_lines << state.current_line
+            current_line = state.current_line
+            content_lines << current_line
             state.next_line
+            break if line.match?(HTML_BLOCK_START_7) && current_line.match?(%r{</[A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?>})
             break if state.blank_line?
           end
         end
@@ -775,6 +782,11 @@ module Mdlint
         )
 
         true
+      end
+
+      def alert_attributes(content_lines)
+        match = content_lines.first.to_s.match(/\A\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i)
+        match ? { alert: match[1].downcase } : {}
       end
 
       def task_attributes(content)

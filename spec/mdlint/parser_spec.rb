@@ -182,5 +182,18 @@ RSpec.describe Mdlint::Parser do
       inline = tokens.find { |token| token.type == :inline }
       expect(inline.children.map(&:type)).to include(:footnote_ref, :math_inline)
     end
+
+    it "preserves MDX component blocks" do
+      tokens = Mdlint.parse("<Alert type=\"warning\">\nContent\n</Alert>\n")
+
+      expect(tokens.map(&:type)).to eq([:html_block])
+      expect(tokens.first.content).to include("</Alert>")
+    end
+
+    it "records GitHub alert metadata on blockquotes" do
+      token = Mdlint.parse("> [!NOTE]\n> Content\n").find { |candidate| candidate.type == :blockquote_open }
+
+      expect(token.attrs[:alert]).to eq("note")
+    end
   end
 end

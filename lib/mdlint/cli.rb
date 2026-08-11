@@ -21,6 +21,7 @@ module Mdlint
       parse_options
       load_config
       load_plugins
+      @cache_store = CacheStore.new(@options[:cache_path]) if @options[:cache]
       return show_rule_list if @options[:list_rules]
       return show_rule_explanation(@options[:explain]) if @options[:explain]
 
@@ -77,7 +78,16 @@ module Mdlint
         opts.on("--format FORMAT", "Lint output: text, json, sarif, github, checkstyle, junit") { |format| @cli_options[:format] = format }
         opts.on("--stdin-filename NAME", "Filename to use for stdin diagnostics") { |name| @cli_options[:stdin_filename] = name }
         opts.on("--dialect DIALECT", "Markdown dialect: commonmark or gfm") { |dialect| @cli_options[:dialect] = dialect.to_sym }
-        opts.on("--check-links", "Check relative link and image targets") { @cli_options[:check_links] = true }
+        opts.on("--preset NAME", "Enable a rule preset, such as japanese") { |preset| @cli_options[:preset] = preset.to_sym }
+        opts.on("--check-links", "Check relative link, image, and anchor targets") { @cli_options[:check_links] = true }
+        opts.on("--check-external-links", "Check external HTTP(S) links") { @cli_options[:check_external_links] = true }
+        opts.on("--check-code-blocks", "Validate supported fenced code blocks") { @cli_options[:check_code_blocks] = true }
+        opts.on("--toc", "Update table-of-contents markers while formatting") { @cli_options[:toc] = true }
+        opts.on("--no-table-align", "Do not pad GFM table columns") { @cli_options[:table_align] = false }
+        opts.on("--jobs N", Integer, "Process files concurrently") { |jobs| @cli_options[:jobs] = [jobs, 1].max }
+        opts.on("--cache", "Cache lint diagnostics") { @cli_options[:cache] = true }
+        opts.on("--cache-path PATH", "Path for the lint cache") { |path| @cli_options[:cache_path] = path; @cli_options[:cache] = true }
+        opts.on("--no-cache", "Disable diagnostic cache") { @cli_options[:cache] = false }
         opts.on("--lsp", "Run the Language Server Protocol server") { @command = :lsp }
         opts.on("--list-rules", "List available lint rules") { @cli_options[:list_rules] = true }
         opts.on("--explain RULE", "Explain a lint rule") { |rule| @cli_options[:explain] = rule }
@@ -102,7 +112,7 @@ module Mdlint
       return process_format_stdin if @argv.empty?
 
       files = collect_files(@argv)
-      changed_files = files.filter_map { |file| file if process_format_file(file) }
+      changed_files = ParallelRunner.map(files, jobs: @options[:jobs]) { |file| file if process_format_file(file) }.compact
 
       if @options[:check]
         exit(changed_files.empty? ? 0 : 1)
@@ -150,10 +160,11 @@ module Mdlint
       entries = if @argv.empty?
                   process_lint_stdin
                 else
-                  collect_files(@argv).flat_map { |file| process_lint_file(file) }
+                  ParallelRunner.map(collect_files(@argv), jobs: @options[:jobs]) { |file| process_lint_file(file) }.flatten
                 end
 
       print lint_output(entries) unless @options[:quiet]
+      @cache_store&.save
       return write_auto_gen_config(entries) if @options[:auto_gen_config]
 
       fail_for?(entries) ? exit(1) : 0
@@ -191,7 +202,21 @@ module Mdlint
       fixed_source = apply_lint_fix(file, source, file)
       return [] if @options[:fix_only]
 
-      Mdlint.lint(fixed_source, lint_options(file)).map { |violation| { filename: file, violation: violation } }
+      violations = cached_lint(file, fixed_source)
+      violations.map { |violation| { filename: file, violation: violation } }
+    end
+
+    def cached_lint(file, source)
+      options = lint_options(file)
+      return Mdlint.lint(source, options) unless @cache_store && !fix_requested?
+
+      key = @cache_store.key(source, options)
+      cached = @cache_store.fetch(key)
+      return cached if cached
+
+      violations = Mdlint.lint(source, options)
+      @cache_store.store(key, violations)
+      violations
     end
 
     def apply_lint_fix(filename, source, path)
@@ -283,7 +308,9 @@ module Mdlint
         wrap: @options[:wrap] || :keep,
         number: @options[:number] || false,
         end_of_line: @options[:end_of_line] || :lf,
-        dialect: @options[:dialect] || :commonmark
+        dialect: @options[:dialect] || :commonmark,
+        toc: @options[:toc],
+        table_align: @options.fetch(:table_align, true)
       }
     end
 
@@ -293,7 +320,10 @@ module Mdlint
         disable: @options[:disable] || [],
         severity: @options[:severity],
         dialect: @options[:dialect] || :commonmark,
+        preset: @options[:preset],
         check_links: @options[:check_links],
+        check_external_links: @options[:check_external_links],
+        check_code_blocks: @options[:check_code_blocks],
         filename: filename
       }.compact
     end

@@ -11,6 +11,8 @@ require_relative "linter/rules/no_multiple_blanks"
 require_relative "linter/rules/first_line_heading"
 require_relative "linter/rules/line_length"
 require_relative "linter/rules/link_check"
+require_relative "linter/rules/japanese"
+require_relative "linter/rules/code_block_syntax"
 
 module Mdlint
   module Linter

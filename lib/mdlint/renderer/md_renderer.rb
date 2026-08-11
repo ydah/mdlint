@@ -8,6 +8,8 @@ module Mdlint
     class MdRenderer
       BULLET_MARKERS = %w[- *].freeze
       HORIZONTAL_RULE = "_" * 70
+      LINE_START_PROHIBITED = /\A[、。，．！？!?、)]|\A[）】」』〉》〕］｝…]/
+      LINE_END_PROHIBITED = /[「『（【〈《〔［｛]\z/
 
       def initialize(options = {})
         @options = options
@@ -220,6 +222,25 @@ module Mdlint
           chunk = TextWidth.take(remaining, width)
           break if chunk.empty?
 
+          if remaining.length > chunk.length && chunk.match?(LINE_END_PROHIBITED)
+            moved = chunk[-1]
+            chunk = chunk[0...-1]
+            remaining = moved + remaining[chunk.length + 1..]
+          end
+
+          if remaining.match?(LINE_START_PROHIBITED)
+            first = remaining[0]
+            first_width = TextWidth.measure(first)
+            if TextWidth.measure(chunk) + first_width <= width
+              chunk += first
+              remaining = remaining[1..]
+            elsif chunk.length > 1
+              moved = chunk[-1]
+              chunk = chunk[0...-1]
+              remaining = moved + remaining
+            end
+          end
+
           chunks << chunk
           remaining = remaining[chunk.length..]
         end
@@ -309,20 +330,54 @@ module Mdlint
         rows = token.meta.fetch(:rows, [])
         return if rows.empty?
 
-        header = rows.first
         alignments = token.meta.fetch(:alignments, [])
-        output << "| #{header.join(" | ")} |\n"
-        separators = header.each_index.map do |index|
-          case alignments[index]
-          when :center then ":---:"
-          when :left then ":---"
-          when :right then "---:"
-          else "---"
+        if @options.fetch(:table_align, true)
+          column_count = rows.map(&:length).max || 0
+          widths = column_count.times.map do |index|
+            [rows.map { |row| TextWidth.measure(row[index].to_s) }.max || 0, 3].max
           end
+          output << "| #{render_table_row(rows.first, widths, alignments)} |\n"
+          separators = widths.each_index.map { |index| table_separator(alignments[index], widths[index]) }
+          output << "| #{separators.join(" | ")} |\n"
+          rows.drop(1).each { |row| output << "| #{render_table_row(row, widths, alignments)} |\n" }
+        else
+          header = rows.first
+          output << "| #{header.join(" | ")} |\n"
+          separators = header.each_index.map { |index| table_separator(alignments[index], 3) }
+          output << "| #{separators.join(" | ")} |\n"
+          rows.drop(1).each { |row| output << "| #{row.join(" | ")} |\n" }
         end
-        output << "| #{separators.join(" | ")} |\n"
-        rows.drop(1).each { |row| output << "| #{row.join(" | ")} |\n" }
         output << "\n"
+      end
+
+      def render_table_row(row, widths, alignments)
+        widths.each_index.map do |index|
+          value = row[index].to_s
+          padding = widths[index] - TextWidth.measure(value)
+          case alignments[index]
+          when :right
+            " " * padding + value
+          when :center
+            left = padding / 2
+            " " * left + value + " " * (padding - left)
+          else
+            value + " " * padding
+          end
+        end.join(" | ")
+      end
+
+      def table_separator(alignment, width)
+        width = [width, 3].max
+        case alignment
+        when :center
+          ":#{"-" * width}:"
+        when :left
+          ":#{"-" * width}"
+        when :right
+          "#{"-" * width}:"
+        else
+          "-" * width
+        end
       end
 
       def collect_paragraph_content(tokens, start_index, content_array)
@@ -337,6 +392,7 @@ module Mdlint
       end
 
       def render_blockquote(tokens, start_index, output)
+        open_token = tokens[start_index]
         i = start_index + 1
         inner_output = []
 
@@ -355,6 +411,11 @@ module Mdlint
         end
 
         quoted = inner_output.join.chomp.split("\n").map { |l| "> #{l}".rstrip }.join("\n")
+        if open_token.attrs[:alert]
+          label = open_token.attrs[:alert].upcase
+          quoted = "> [!#{label}]\n#{quoted}" unless quoted.empty?
+          quoted = "> [!#{label}]" if quoted.empty?
+        end
         output << "#{quoted}\n\n"
         i + 1
       end

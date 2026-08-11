@@ -89,6 +89,14 @@ RSpec.describe Mdlint do
       expect(lines.all? { |line| Mdlint::TextWidth.measure(line) <= 10 }).to be true
     end
 
+    it "keeps Japanese punctuation with natural line-break rules" do
+      result = Mdlint.format("これは文章です。次の文章です。\n", wrap: 8)
+      lines = result.split("\n").reject(&:empty?)
+
+      expect(lines).not_to include(a_string_ending_with("「"))
+      expect(lines.drop(1)).not_to include(a_string_starting_with("。"))
+    end
+
     it "removes line breaks with wrap: :no option" do
       input = "Line one\nLine two\n"
       result = Mdlint.format(input, wrap: :no)
@@ -113,8 +121,17 @@ RSpec.describe Mdlint do
 
       result = Mdlint.format(input, dialect: :gfm)
 
-      expect(result).to include("| Name | State |\n| --- | --- |\n")
+      expect(result).to include("| Name | State    |\n| ---- | -------- |\n")
       expect(result).to include("- [x] Ready\n")
+    end
+
+    it "updates table-of-contents markers" do
+      source = "# Title\n\n<!-- toc -->\nold\n<!-- toc -->\n\n## Details\n"
+
+      result = Mdlint.format(source, toc: true)
+
+      expect(result).to include("- [Title](#title)\n  - [Details](#details)")
+      expect(result).not_to include("old")
     end
   end
 
@@ -133,6 +150,13 @@ RSpec.describe Mdlint do
       expect(result).to include("<table>")
       expect(result).to include("<del>done</del>")
       expect(result).to include('type="checkbox" disabled checked')
+    end
+
+    it "renders GitHub alert blockquotes as alert asides" do
+      result = Mdlint.html("> [!WARNING]\n> Be careful.\n")
+
+      expect(result).to include('<aside class="markdown-alert markdown-alert-warning">')
+      expect(result).to include("<p>Be careful.</p>")
     end
 
     it "preserves rendered meaning through formatting" do

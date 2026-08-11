@@ -1,0 +1,90 @@
+module Mdlint
+  class Error < StandardError
+  end
+
+  type options = Hash[Symbol, untyped]
+
+  def self.format: (String source, ?options options) -> String
+  def self.html: (String source, ?options options) -> String
+  def self.parse: (String source, ?options options) -> Array[Token]
+  def self.fix: (String source, ?options options) -> String
+  def self.format_file: (String path, ?options options) -> (String | bool)
+  def self.lint: (String source, ?options options) -> Array[Linter::Violation]
+  def self.lint_file: (String path, ?options options) -> Array[Linter::Violation]
+
+  VERSION: String
+
+  class Dialect
+    attr_reader name: Symbol
+    def initialize: (?Symbol | String name) -> void
+    def gfm?: () -> bool
+    def self.resolve: (untyped value) -> Dialect
+  end
+
+  module Parser
+    def self.parse: (String source, ?options options) -> Array[Token]
+  end
+
+  module Renderer
+    def self.render: (Array[Token] tokens, ?options options) -> String
+    def self.render_html: (Array[Token] tokens, ?options options) -> String
+  end
+
+  module Toc
+    def self.update: (String source, ?options options) -> String
+  end
+
+  class Token
+    attr_accessor type: Symbol
+    attr_accessor tag: String?
+    attr_accessor nesting: Integer
+    attr_accessor level: Integer
+    attr_accessor content: String
+    attr_accessor markup: String
+    attr_accessor info: String
+    attr_accessor meta: Hash[Symbol, untyped]
+    attr_accessor map: Array[Integer]?
+    attr_accessor children: Array[Token]
+    attr_accessor attrs: Hash[Symbol, untyped]
+    def initialize: (type: Symbol, **untyped) -> void
+    def opening?: () -> bool
+    def closing?: () -> bool
+    def self_closing?: () -> bool
+    def block?: () -> bool
+    def inline?: () -> bool
+  end
+
+  module Linter
+    def self.fix: (String source, ?options options) -> String
+    def self.check: (String source, ?options options) -> Array[Violation]
+
+    class Violation
+      attr_reader rule_id: String
+      attr_reader message: String
+      attr_reader line: Integer
+      attr_reader column: Integer?
+      attr_reader severity: Symbol
+      attr_reader fixable: bool
+      def initialize: (rule_id: String, message: String, line: Integer, ?column: Integer?, ?severity: Symbol, ?fixable: bool) -> void
+      def to_s: () -> String
+      def to_h: () -> Hash[Symbol, untyped]
+      def fixable?: () -> bool
+      def error?: () -> bool
+      def warning?: () -> bool
+      def info?: () -> bool
+    end
+
+    class Rule
+      def initialize: (?options options) -> void
+      def check: (Array[Token] tokens, String source) -> Array[Violation]
+      def fix: (Array[Token] tokens, String source) -> String
+    end
+
+    class RuleRegistry
+      def self.all: () -> Array[singleton(Rule)]
+      def self.find: (String rule_id) -> singleton(Rule)?
+      def self.register: (singleton(Rule) rule_class) -> void
+      def self.normalize_id: (String rule_id) -> String
+    end
+  end
+end

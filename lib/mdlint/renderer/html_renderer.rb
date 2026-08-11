@@ -40,7 +40,12 @@ module Mdlint
             output << "<li>#{task}#{item}</li>\n"
           when :blockquote_open
             content, index = render_sequence(tokens, index + 1, :blockquote_close)
-            output << "<blockquote>\n#{content}</blockquote>\n"
+            if token.attrs[:alert]
+              alert = escape_attribute(token.attrs[:alert])
+              output << "<aside class=\"markdown-alert markdown-alert-#{alert}\">\n#{content}</aside>\n"
+            else
+              output << "<blockquote>\n#{content}</blockquote>\n"
+            end
           when :fence
             output << fenced_code(token)
             index += 1

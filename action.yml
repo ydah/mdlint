@@ -1,0 +1,27 @@
+name: mdlint
+description: Lint and format Markdown files with mdlint
+branding:
+  icon: check-circle
+  color: blue
+inputs:
+  args:
+    description: Arguments passed to mdlint
+    required: false
+    default: lint --format github
+  ruby-version:
+    description: Ruby version used by the action
+    required: false
+    default: '3.2'
+runs:
+  using: composite
+  steps:
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+    - name: Install mdlint
+      shell: bash
+      run: gem install mdlint --no-document
+    - name: Run mdlint
+      shell: bash
+      run: mdlint ${{ inputs.args }}

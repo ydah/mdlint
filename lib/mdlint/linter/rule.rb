@@ -4,7 +4,7 @@ module Mdlint
   module Linter
     class Rule
       class << self
-        attr_accessor :rule_id, :description, :aliases
+        attr_accessor :rule_id, :description, :aliases, :preset
 
         def inherited(subclass)
           super

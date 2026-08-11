@@ -22,8 +22,16 @@ module Mdlint
       fail_level: :warning,
       format: nil,
       dialect: :commonmark,
+      preset: nil,
       plugins: [],
-      check_links: false
+      check_links: false,
+      check_external_links: false,
+      check_code_blocks: false,
+      toc: false,
+      table_align: true,
+      jobs: 1,
+      cache: false,
+      cache_path: ".mdlint_cache"
     }.freeze
 
     attr_reader :options
@@ -91,6 +99,9 @@ module Mdlint
       options[:check] = parsed[:check] if parsed.key?(:check)
       options[:diff] = parsed[:diff] if parsed.key?(:diff)
       options[:quiet] = parsed[:quiet] if parsed.key?(:quiet)
+      options[:wrap] = normalize_wrap(parsed[:wrap]) if parsed.key?(:wrap)
+      options[:number] = parsed[:number] if parsed.key?(:number)
+      options[:end_of_line] = parsed[:end_of_line].to_s.downcase.to_sym if parsed[:end_of_line]
       options[:rules] = normalize_rules(parsed[:rules]) if parsed.key?(:rules)
 
       if parsed[:disable]
@@ -101,8 +112,16 @@ module Mdlint
       options[:fail_level] = parsed[:fail_level].to_sym if parsed[:fail_level]
       options[:format] = parsed[:format].to_s if parsed[:format]
       options[:dialect] = parsed[:dialect].to_sym if parsed[:dialect]
+      options[:preset] = parsed[:preset].to_sym if parsed[:preset]
       options[:plugins] = Array(parsed[:plugins]).map(&:to_s) if parsed[:plugins]
       options[:check_links] = parsed[:check_links] if parsed.key?(:check_links)
+      options[:check_external_links] = parsed[:check_external_links] if parsed.key?(:check_external_links)
+      options[:check_code_blocks] = parsed[:check_code_blocks] if parsed.key?(:check_code_blocks)
+      options[:toc] = parsed[:toc] if parsed.key?(:toc)
+      options[:table_align] = parsed[:table_align] if parsed.key?(:table_align)
+      options[:jobs] = parsed[:jobs].to_i if parsed[:jobs]
+      options[:cache] = parsed[:cache] if parsed.key?(:cache)
+      options[:cache_path] = parsed[:cache_path].to_s if parsed[:cache_path]
 
       if parsed[:exclude]
         options[:exclude] = Array(parsed[:exclude])
@@ -123,6 +142,16 @@ module Mdlint
                                      setting
                                    end
       end
+    end
+
+    def normalize_wrap(value)
+      case value.to_s.downcase
+      when "keep" then :keep
+      when "no" then :no
+      else Integer(value)
+      end
+    rescue ArgumentError, TypeError
+      :keep
     end
 
     def merge_options(file_options)

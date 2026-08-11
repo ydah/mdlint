@@ -106,6 +106,30 @@ RSpec.describe Mdlint::Linter do
 
       expect(Mdlint.lint(source).map(&:rule_id)).to be_empty
     end
+
+    it "enables Japanese writing rules only through the Japanese preset" do
+      source = "# 見出し\n\nこれはです。これはだ。\n"
+
+      expect(Mdlint.lint(source).map(&:rule_id)).not_to include("JA003")
+      expect(Mdlint.lint(source, preset: :japanese).map(&:rule_id)).to include("JA003")
+    end
+
+    it "validates supported fenced code blocks when requested" do
+      source = "# Example\n\n```json\n{ invalid }\n```\n"
+
+      violations = Mdlint.lint(source, check_code_blocks: true)
+
+      expect(violations.map(&:rule_id)).to include("MD040")
+    end
+
+    it "checks anchors in the current document" do
+      source = "# Hello World\n\n[ok](#hello-world) [missing](#missing)\n"
+
+      violations = Mdlint.lint(source, check_links: true)
+
+      expect(violations.map(&:rule_id)).to eq(["MD052"])
+      expect(violations.first.message).to include("#missing")
+    end
   end
 
   describe "rule disabling" do

@@ -47,11 +47,21 @@ module Mdlint
       end
 
       def configured_enabled?(rule_class)
+        if rule_class.preset && @options[:preset].to_s != rule_class.preset.to_s
+          explicitly_selected = @enabled_rules&.include?(rule_class.rule_id) || explicitly_configured?(rule_class)
+          return false unless explicitly_selected
+        end
         return @enabled_rules.include?(rule_class.rule_id) if @enabled_rules
         return true unless @configured_rules.is_a?(Hash)
 
         setting = rule_setting(rule_class)
         setting != false && (!setting.is_a?(Hash) || setting[:enabled] != false)
+      end
+
+      def explicitly_configured?(rule_class)
+        return false unless @configured_rules.is_a?(Hash)
+
+        @configured_rules.any? { |key, _value| RuleRegistry.normalize_id(key) == rule_class.rule_id }
       end
 
       def rule_options(rule_class)

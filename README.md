@@ -28,6 +28,10 @@
 - GFM tables, task lists, strikethrough, and configurable dialects
 - Text, JSON, SARIF, Checkstyle, JUnit, and GitHub diagnostic output
 - Optional HTML rendering through the Ruby API
+- GitHub Action and RBS/Steep signatures for integration and tooling
+- Language Server Protocol diagnostics, formatting, and quick fixes
+- Parallel linting with a content/configuration-hash cache
+- Japanese technical-writing preset, code-block syntax checks, link/anchor checks, and TOC updates
 
 ## Quickstart
 
@@ -81,7 +85,7 @@ Options:
 ```
 Usage: mdlint [command] [options] [paths...]
 
-Commands: format (default), lint, fix
+Commands: format (default), lint, fix, lsp
 
 Options:
     -c, --check              Check if files are formatted, exit with error if not
@@ -101,7 +105,16 @@ Options:
         --format FORMAT       Lint output: text, json, sarif, github, checkstyle, junit
         --stdin-filename NAME Filename to use for stdin diagnostics
         --dialect DIALECT     Markdown dialect: commonmark or gfm
-        --check-links          Check relative link and image targets
+        --preset NAME          Enable a rule preset, such as japanese
+        --check-links          Check relative link, image, and anchor targets
+        --check-external-links Check external HTTP(S) links
+        --check-code-blocks    Validate supported fenced code blocks
+        --toc                  Update table-of-contents markers
+        --no-table-align       Do not pad GFM table columns
+        --jobs N               Process files concurrently
+        --cache                Cache lint diagnostics
+        --cache-path PATH      Path for the lint cache
+        --lsp                  Run the Language Server Protocol server
         --list-rules           List available lint rules
         --explain RULE        Explain a lint rule
         --require PATH        Load a custom rule file
@@ -128,6 +141,7 @@ violations = Mdlint.lint_file("README.md")
 fixed = Mdlint.fix("Line  \n")
 html = Mdlint.html("# Hello\n\n**world**\n")
 gfm_tokens = Mdlint.parse("- [x] Done\n", dialect: :gfm)
+toc_updated = Mdlint.update_toc("# Hello\n\n<!-- toc -->\nold\n<!-- toc -->\n")
 ```
 
 ## Configuration
@@ -148,6 +162,16 @@ exclude:
 
 # Markdown dialect
 dialect: commonmark # or gfm
+
+# Optional integrations
+preset: japanese
+toc: false
+check_links: false
+check_external_links: false
+check_code_blocks: false
+jobs: 2
+cache: true
+cache_path: .mdlint_cache
 
 # Rule configuration (markdownlint-compatible IDs and aliases are accepted)
 rules:
@@ -176,7 +200,11 @@ Key rules:
 - No multiple consecutive blank lines
 - First line should be a top-level heading
 - Lines should respect MD013's configured length
-- Relative links can be checked with `mdlint lint --check-links` (external URLs are not requested).
+- Relative links, images, and anchors can be checked with `mdlint lint --check-links`.
+- External HTTP(S) links are opt-in with `--check-external-links`.
+- `--preset japanese` enables JA001–JA006 writing checks; options include `sentence_length` and `max_commas`.
+- `--check-code-blocks` validates JSON and Ruby fenced blocks.
+- `--toc` regenerates content between paired `<!-- toc -->` or `<!-- toc:start -->` / `<!-- toc:end -->` markers.
 
 Inline directives can suppress diagnostics for a section or one line:
 
@@ -216,6 +244,7 @@ Block elements:
 - Horizontal rules (`---`, `***`, `___`)
 - HTML blocks
 - Reference definitions
+- Footnotes, fenced math blocks, GitHub alerts, and MDX/JSX component blocks
 
 Inline elements:
 
@@ -228,14 +257,20 @@ Inline elements:
 - Autolinks (`<https://example.com>`)
 - Hard breaks (backslash + newline)
 
-With `dialect: gfm`, tables, task lists, strikethrough, and bare URL autolinks are supported.
-Footnote definitions/references and fenced math blocks are preserved and included in HTML output.
+With `dialect: gfm`, tables, task lists, strikethrough, and bare URL autolinks are supported. Footnote definitions/references, fenced math blocks, GitHub alerts, and MDX/JSX blocks are preserved and included in HTML output.
 
 ## Development
 
 ```bash
 bin/setup
 bundle exec rspec
+rbs validate
+steep check --no-daemon
+
+# Optional quality tools
+ruby script/fetch_commonmark_spec.rb
+bundle exec rspec spec/commonmark_spec.rb
+ITERATIONS=100 ruby benchmark/format.rb README.md
 ```
 
 ## Contributing

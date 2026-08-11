@@ -27,3 +27,9 @@ jobs:
           bundler-cache: true
       - name: Run the default task
         run: bundle exec rake
+      - name: Validate RBS signatures
+        if: matrix.ruby == '3.3'
+        run: gem install rbs -v 4.1.2 --no-document && rbs validate
+      - name: Run Steep
+        if: matrix.ruby == '3.3'
+        run: gem install steep -v 2.0.0 --no-document && steep check --no-daemon
