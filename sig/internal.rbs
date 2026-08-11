@@ -154,6 +154,7 @@ module Mdlint
       def mark_current_list_loose: (untyped state) -> untyped
       def parse_html_block: (untyped state) -> untyped
       def html_block_start?: (untyped line) -> bool
+      def lazy_blockquote_continuation?: (untyped line) -> bool
       def parse_code_block: (untyped state) -> untyped
       def parse_reference_definition: (untyped state) -> untyped
       def reference_definition_candidate?: (untyped state) -> bool
@@ -178,6 +179,11 @@ module Mdlint
       def parse_link_destination: (untyped value) -> untyped
       def find_unescaped: (untyped value, untyped character, untyped start) -> untyped
       def code_span_match: (untyped value) -> untyped
+      def emphasis_match: (untyped value, untyped delimiter, previous: untyped, ?strong: bool) -> untyped
+      def delimiter_open?: (untyped delimiter, untyped before, untyped after) -> bool
+      def delimiter_close?: (untyped delimiter, untyped before, untyped after) -> bool
+      def whitespace_character?: (untyped character) -> bool
+      def punctuation_character?: (untyped character) -> bool
       def flush_text: (untyped buffer, untyped tokens) -> untyped
     end
   end

@@ -373,9 +373,16 @@ module Mdlint
         start_line = state.line
         content_lines = []
 
-        while !state.eof? && state.current_line.match?(BLOCKQUOTE_REGEXP)
-          content_lines << state.raw_line.sub(BLOCKQUOTE_REGEXP, "")
-          state.next_line
+        while !state.eof?
+          if state.current_line.match?(BLOCKQUOTE_REGEXP)
+            content_lines << state.raw_line.sub(BLOCKQUOTE_REGEXP, "")
+            state.next_line
+          elsif !state.blank_line? && lazy_blockquote_continuation?(state.current_line)
+            content_lines << state.raw_line.sub(/\A\s+/, "")
+            state.next_line
+          else
+            break
+          end
         end
 
         state.tokens << Token.new(
@@ -831,6 +838,13 @@ module Mdlint
       def html_block_start?(line)
         [HTML_BLOCK_START_1, HTML_BLOCK_START_2, HTML_BLOCK_START_3, HTML_BLOCK_START_4,
          HTML_BLOCK_START_5, HTML_BLOCK_START_6, HTML_BLOCK_START_7].any? { |pattern| line.match?(pattern) }
+      end
+
+      def lazy_blockquote_continuation?(line)
+        !line.match?(ATX_HEADING_REGEXP) && !fence_match(line) && !line.match?(HR_REGEXP) &&
+          !line.match?(BLOCKQUOTE_REGEXP) && !line.match?(BULLET_LIST_REGEXP) &&
+          !line.match?(ORDERED_LIST_REGEXP) && !html_block_start?(line) &&
+          !line.match?(REFERENCE_DEF_REGEXP) && !line.match?(FOOTNOTE_DEF_REGEXP)
       end
 
       def parse_code_block(state)

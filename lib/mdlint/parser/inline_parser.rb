@@ -178,7 +178,7 @@ module Mdlint
               pos += 1
             end
           elsif remaining.start_with?("**")
-            if (match = remaining.match(/\A\*\*(?!\s)(.+?)(?<!\s)\*\*/m))
+            if (match = emphasis_match(remaining, "**", previous: pos.zero? ? nil : content[pos - 1], strong: true))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               tokens << Token.new(type: :strong_open, tag: "strong", nesting: 1, markup: "**")
@@ -190,7 +190,7 @@ module Mdlint
               pos += 1
             end
           elsif remaining.start_with?("__")
-            if (match = remaining.match(/\A__(?!\s)(.+?)(?<!\s)__/m))
+            if (match = emphasis_match(remaining, "__", previous: pos.zero? ? nil : content[pos - 1], strong: true))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               tokens << Token.new(type: :strong_open, tag: "strong", nesting: 1, markup: "__")
@@ -214,7 +214,7 @@ module Mdlint
               pos += 1
             end
           elsif remaining.start_with?("*")
-            if (match = remaining.match(/\A\*(?!\s)(.+?)(?<!\s)\*/m))
+            if (match = emphasis_match(remaining, "*", previous: pos.zero? ? nil : content[pos - 1]))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               tokens << Token.new(type: :em_open, tag: "em", nesting: 1, markup: "*")
@@ -226,7 +226,7 @@ module Mdlint
               pos += 1
             end
           elsif remaining.start_with?("_")
-            if (match = remaining.match(/\A_(?!\s)(.+?)(?<!\s)_/m))
+            if (match = emphasis_match(remaining, "_", previous: pos.zero? ? nil : content[pos - 1]))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               tokens << Token.new(type: :em_open, tag: "em", nesting: 1, markup: "_")
@@ -434,6 +434,50 @@ module Mdlint
           search = closing + run
         end
         nil
+      end
+
+      def emphasis_match(value, delimiter, previous:, strong: false)
+        escaped = Regexp.escape(delimiter)
+        match = value.match(/\A#{escaped}(?!\s)(.+?)(?<!\s)#{escaped}/m)
+        return unless match
+
+        opening_next = match[1][0]
+        closing_previous = match[1][-1]
+        after = value[match[0].length]
+        return unless delimiter_open?(delimiter, previous, opening_next)
+        return unless delimiter_close?(delimiter, closing_previous, after)
+
+        match
+      end
+
+      def delimiter_open?(delimiter, before, after)
+        before_space = whitespace_character?(before)
+        after_space = whitespace_character?(after)
+        before_punctuation = punctuation_character?(before)
+        after_punctuation = punctuation_character?(after)
+        left_flanking = !after_space && (!after_punctuation || before_space || before_punctuation)
+        right_flanking = !before_space && (!before_punctuation || after_space || after_punctuation)
+
+        delimiter.start_with?("_") ? left_flanking && (!right_flanking || before_punctuation || before_space) : left_flanking
+      end
+
+      def delimiter_close?(delimiter, before, after)
+        before_space = whitespace_character?(before)
+        after_space = whitespace_character?(after)
+        before_punctuation = punctuation_character?(before)
+        after_punctuation = punctuation_character?(after)
+        left_flanking = !after_space && (!after_punctuation || before_space || before_punctuation)
+        right_flanking = !before_space && (!before_punctuation || after_space || after_punctuation)
+
+        delimiter.start_with?("_") ? right_flanking && (!left_flanking || after_punctuation || after_space) : right_flanking
+      end
+
+      def whitespace_character?(character)
+        character.nil? || character.match?(/\s|\p{Space}/u)
+      end
+
+      def punctuation_character?(character)
+        !character.nil? && character.match?(/[[:punct:]]/u)
       end
 
       def flush_text(buffer, tokens)
