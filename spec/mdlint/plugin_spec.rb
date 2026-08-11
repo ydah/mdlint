@@ -20,9 +20,13 @@ RSpec.describe Mdlint::Plugin do
       end
     end
 
-    described_class.register_rule(rule)
+    begin
+      described_class.register_rule(rule)
 
-    expect(Mdlint::Linter::RuleRegistry.find("plugin-rule")).to eq(rule)
-    expect(Mdlint.lint("# Heading\n", rules: ["PL001"]).map(&:rule_id)).to eq(["PL001"])
+      expect(Mdlint::Linter::RuleRegistry.find("plugin-rule")).to eq(rule)
+      expect(Mdlint.lint("# Heading\n", rules: ["PL001"]).map(&:rule_id)).to eq(["PL001"])
+    ensure
+      described_class.unregister_rule(rule)
+    end
   end
 end

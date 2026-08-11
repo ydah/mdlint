@@ -18,12 +18,18 @@ module Mdlint
       def initialize(options = {})
         @options = options
         @reference_definitions = {}
+        @footnote_definitions = {}
+        @footnote_order = []
       end
 
       def render(tokens)
         @reference_definitions = {}
+        @footnote_definitions = {}
+        @footnote_order = []
         collect_reference_definitions(tokens)
-        render_sequence(tokens, 0).first
+        output = render_sequence(tokens, 0).first
+        output << render_footnotes unless @footnote_order.empty?
+        output
       end
 
       private
@@ -50,7 +56,12 @@ module Mdlint
           when :list_item_open
             item, index = render_sequence(tokens, index + 1, :list_item_close)
             task = token.attrs[:task] ? task_checkbox(token.attrs[:checked]) : ""
-            output << "<li>#{task}#{item}</li>\n"
+            if token.attrs[:tight] == false
+              output << "<li>#{task}\n#{item}</li>\n"
+            else
+              item = collapse_tight_item(item)
+              output << "<li>#{task}#{item}</li>\n"
+            end
           when :blockquote_open
             content, index = render_sequence(tokens, index + 1, :blockquote_close)
             if token.attrs[:alert]
@@ -69,9 +80,7 @@ module Mdlint
             output << "<div class=\"math-block\">#{escape_raw(token.content)}</div>\n"
             index += 1
           when :footnote_definition
-            label = escape_attribute(token.attrs[:label])
-            content = escape(token.attrs[:content])
-            output << "<div class=\"footnote\" id=\"fn-#{label}\"><sup>#{label}</sup> #{content}</div>\n"
+            @footnote_definitions[token.attrs[:label]] ||= token
             index += 1
           when :hr
             output << "<hr />\n"
@@ -129,18 +138,30 @@ module Mdlint
             output << "<span class=\"math-inline\">#{escape(token.content)}</span>"
           when :footnote_ref
             label = escape_attribute(token.attrs[:label])
-            output << "<sup><a href=\"#fn-#{label}\">#{label}</a></sup>"
+            @footnote_order << token.attrs[:label] unless @footnote_order.include?(token.attrs[:label])
+            number = @footnote_order.index(token.attrs[:label]) + 1
+            output << "<sup id=\"fnref-#{label}\"><a href=\"#fn-#{label}\">#{number}</a></sup>"
           when :link_open
             close_index = find_close(tokens, index, :link_close)
             reference = @reference_definitions[token.attrs[:reference_label]]
             href = token.attrs[:href] || reference&.fetch(:url, "") || ""
             title = token.attrs[:title] || reference&.fetch(:title, nil)
+            title = title.to_s.gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1') if title
             title_attribute = title ? " title=\"#{escape_attribute(title)}\"" : ""
-            output << "<a href=\"#{escape_url_attribute(href)}\"#{title_attribute}>#{render_inline_tokens(tokens[(index + 1)...close_index])}</a>"
+            unescape_url = token.markup != "autolink"
+            output << "<a href=\"#{escape_url_attribute(href, unescape: unescape_url)}\"#{title_attribute}>#{render_inline_tokens(tokens[(index + 1)...close_index])}</a>"
             index = close_index
           when :image
-            attrs = "src=\"#{escape_url_attribute(token.attrs[:src])}\" alt=\"#{escape_attribute(token.attrs[:alt] || token.content)}\""
-            attrs += " title=\"#{escape_attribute(token.attrs[:title])}\"" if token.attrs[:title]
+            reference = @reference_definitions[token.attrs[:reference_label]]
+            source = token.attrs[:src] || reference&.fetch(:url, nil)
+            unless source
+              output << escape("![#{token.attrs[:alt] || token.content}]")
+              index += 1
+              next
+            end
+            attrs = "src=\"#{escape_url_attribute(source, unescape: true)}\" alt=\"#{escape_attribute(token.attrs[:alt] || token.content)}\""
+            title = token.attrs[:title] || reference&.fetch(:title, nil)
+            attrs += " title=\"#{escape_attribute(title)}\"" if title
             output << "<img #{attrs}>"
           when :softbreak
             output << "\n"
@@ -166,6 +187,13 @@ module Mdlint
         "<table>\n<thead><tr>#{header}</tr></thead>\n<tbody>\n#{body}</tbody>\n</table>\n"
       end
 
+      def collapse_tight_item(item)
+        match = item.match(/\A<p>(.*)<\/p>\n\z/m)
+        return match[1] if match
+
+        item.sub(/\A<p>(.*)<\/p>\n(?=<(?:ul|ol)>)/m, "\\1\n")
+      end
+
       def collect_reference_definitions(tokens)
         tokens.each do |token|
           next unless token.type == :reference_definition
@@ -176,6 +204,22 @@ module Mdlint
             title: token.attrs[:title]
           }
         end
+      end
+
+      def render_footnotes
+        output = +"<section class=\"footnotes\">\n<ol>\n"
+        @footnote_order.each do |label|
+          token = @footnote_definitions[label]
+          content = token ? render_footnote_content(token.attrs[:content]) : ""
+          safe_label = escape_attribute(label)
+          output << "<li id=\"fn-#{safe_label}\">#{content} <a href=\"#fnref-#{safe_label}\">↩︎</a></li>\n"
+        end
+        output << "</ol>\n</section>\n"
+      end
+
+      def render_footnote_content(content)
+        inner_tokens = Parser.parse("#{content}\n", @options)
+        render_sequence(inner_tokens, 0).first
       end
 
       def render_directive(token)
@@ -208,6 +252,7 @@ module Mdlint
 
       def fenced_code(token)
         language = token.info.to_s.split.first
+        language = decode_entities(language.to_s).gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1')
         class_attribute = language && !language.empty? ? " class=\"language-#{escape_attribute(language)}\"" : ""
         "<pre><code#{class_attribute}>#{escape_raw(token.content)}</code></pre>\n"
       end
@@ -229,8 +274,8 @@ module Mdlint
         CGI.escapeHTML(decode_entities(value.to_s)).gsub("`", "&#39;")
       end
 
-      def escape_url_attribute(value)
-        encoded = value.to_s.gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1')
+      def escape_url_attribute(value, unescape: true)
+        encoded = unescape ? value.to_s.gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1') : value.to_s
         encoded = decode_entities(encoded)
         encoded = URI::DEFAULT_PARSER.escape(encoded, /[^A-Za-z0-9\-._~;\/:?@&=+$,#%!()*']/)
         CGI.escapeHTML(encoded).gsub("`", "&#39;")

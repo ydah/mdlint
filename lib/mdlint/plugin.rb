@@ -18,6 +18,10 @@ module Mdlint
       Mdlint::Dialect.register(name, features: features)
     end
 
+    def self.unregister_rule(rule_class)
+      Mdlint::Linter::RuleRegistry.unregister(rule_class)
+    end
+
     def self.load(path)
       require File.expand_path(path, Dir.pwd)
     rescue LoadError, StandardError => error

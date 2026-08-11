@@ -5,6 +5,6 @@
   {"example": "strong", "markdown": "**foo**\n", "html": "<p><strong>foo</strong></p>\n"},
   {"example": "link", "markdown": "[foo](https://example.com)\n", "html": "<p><a href=\"https://example.com\">foo</a></p>\n"},
   {"example": "code", "markdown": "`foo`\n", "html": "<p><code>foo</code></p>\n"},
-  {"example": "unordered list", "markdown": "- a\n- b\n", "html": "<ul>\n<li><p>a</p>\n</li>\n<li><p>b</p>\n</li>\n</ul>\n"},
+  {"example": "unordered list", "markdown": "- a\n- b\n", "html": "<ul>\n<li>a</li>\n<li>b</li>\n</ul>\n"},
   {"example": "blockquote", "markdown": "> quote\n", "html": "<blockquote>\n<p>quote</p>\n</blockquote>\n"}
 ]

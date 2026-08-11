@@ -83,7 +83,10 @@ module Mdlint
       def render_inline: (untyped token) -> String
       def render_inline_tokens: (untyped tokens) -> String
       def render_table: (untyped token) -> String
+      def collapse_tight_item: (untyped item) -> String
       def collect_reference_definitions: (untyped tokens) -> untyped
+      def render_footnotes: () -> String
+      def render_footnote_content: (untyped content) -> String
       def render_directive: (untyped token) -> String
       def render_cell: (untyped value) -> String
       def fenced_code: (untyped token) -> String
@@ -91,7 +94,7 @@ module Mdlint
       def find_close: (untyped tokens, untyped index, untyped close_type) -> untyped
       def escape: (untyped value) -> String
       def escape_attribute: (untyped value) -> String
-      def escape_url_attribute: (untyped value) -> String
+      def escape_url_attribute: (untyped value, ?unescape: bool) -> String
       def escape_raw: (untyped value) -> String
       def decode_entities: (untyped value) -> String
     end
@@ -121,6 +124,7 @@ module Mdlint
       def parse: (untyped src) -> untyped
       def parse_block: (untyped state) -> untyped
       def parse_directive: (untyped state) -> untyped
+      def find_directive_closing_line: (untyped state, untyped name) -> untyped
       def parse_math_block: (untyped state) -> untyped
       def parse_table: (untyped state) -> untyped
       def table_delimiter?: (untyped line) -> bool
@@ -137,8 +141,14 @@ module Mdlint
       def parse_blockquote: (untyped state) -> untyped
       def parse_bullet_list: (untyped state) -> untyped
       def parse_ordered_list: (untyped state) -> untyped
-      def parse_list_items: (untyped state, untyped pattern, untyped marker) -> untyped
-      def parse_ordered_list_items: (untyped state, untyped delimiter) -> untyped
+      def parse_list_items: (untyped state, untyped pattern, untyped marker, ?untyped base_indent) -> untyped
+      def parse_ordered_list_items: (untyped state, untyped delimiter, ?untyped base_indent) -> untyped
+      def dedent_list_line: (untyped line, untyped base_indent) -> String
+      def append_nested_tokens: (untyped state, untyped nested_lines, untyped start_line) -> untyped
+      def block_boundary?: (untyped line) -> bool
+      def collect_loose_item_content: (untyped state, untyped pattern, untyped base_indent) -> untyped
+      def append_loose_paragraph: (untyped state, untyped content, untyped start_line) -> untyped
+      def mark_current_list_loose: (untyped state) -> untyped
       def parse_html_block: (untyped state) -> untyped
       def parse_code_block: (untyped state) -> untyped
       def parse_reference_definition: (untyped state) -> untyped

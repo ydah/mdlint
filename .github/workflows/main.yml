@@ -27,6 +27,8 @@ jobs:
           bundler-cache: true
       - name: Run the default task
         run: bundle exec rake
+      - name: Run formatter property tests
+        run: bundle exec rake property
       - name: Validate RBS signatures
         if: matrix.ruby == '3.3'
         run: gem install rbs -v 4.1.2 --no-document && rbs validate

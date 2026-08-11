@@ -65,6 +65,29 @@ module Mdlint
                 content: match[1]
               )
               pos += match[0].length
+            elsif (match = remaining.match(/\A!\[([^\]]*)\]\[([^\]]*)\]/))
+              flush_text(text_buffer, tokens)
+              text_buffer = ""
+              label = match[2].empty? ? match[1] : match[2]
+              tokens << Token.new(
+                type: :image,
+                tag: "img",
+                attrs: { reference_label: label.downcase, alt: match[1] },
+                content: match[1],
+                markup: "reference"
+              )
+              pos += match[0].length
+            elsif (match = remaining.match(/\A!\[([^\]]+)\](?!\()/))
+              flush_text(text_buffer, tokens)
+              text_buffer = ""
+              tokens << Token.new(
+                type: :image,
+                tag: "img",
+                attrs: { reference_label: match[1].downcase, alt: match[1] },
+                content: match[1],
+                markup: "reference"
+              )
+              pos += match[0].length
             else
               text_buffer += remaining[0]
               pos += 1

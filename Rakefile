@@ -4,6 +4,9 @@ require "bundler/gem_tasks"
 require "rspec/core/rake_task"
 
 RSpec::Core::RakeTask.new(:spec)
+RSpec::Core::RakeTask.new(:property) do |task|
+  task.pattern = "spec/mdlint/property_spec.rb"
+end
 
 namespace :commonmark do
   task :fetch do

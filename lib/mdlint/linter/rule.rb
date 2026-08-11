@@ -76,6 +76,10 @@ module Mdlint
         def clear
           @rules = []
         end
+
+        def unregister(rule_class)
+          @rules.delete(rule_class)
+        end
       end
     end
   end

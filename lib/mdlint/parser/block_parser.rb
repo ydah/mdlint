@@ -70,10 +70,9 @@ module Mdlint
         match = line.match(/\A {0,3}:::([A-Za-z][\w-]*)(?:\s+(.*?))?\s*\z/)
         return false unless match
 
-        closing_line = state.lines[(state.line + 1)..]&.index { |candidate| candidate.strip == ":::" }
+        closing_line = find_directive_closing_line(state, match[1])
         return false unless closing_line
 
-        closing_line += state.line + 1
         start_line = state.line
         content = state.raw_lines[start_line..closing_line].join("\n")
         content += "\n" if closing_line < state.lines.length - 1 || state.src.end_with?("\n")
@@ -227,7 +226,8 @@ module Mdlint
         return false unless match
 
         level = match[1].length
-        content = match[2]&.gsub(/\s+#+\s*\z/, "")&.strip || ""
+        content = match[2].to_s.gsub(/\s+#+\s*\z/, "").strip
+        content = "" if content.match?(/\A#+\s*\z/)
 
         start_line = state.line
 
@@ -264,14 +264,20 @@ module Mdlint
         line = state.current_line
         return false if line.match?(/\A\s*\z/)
 
-        next_line = state.peek_line
-        return false unless next_line
+        underline_index = state.line + 1
+        while underline_index < state.lines.length && !state.blank_line?(underline_index)
+          break if state.lines[underline_index].match?(SETEXT_HEADING_REGEXP)
+          break if block_boundary?(state.lines[underline_index])
 
-        match = next_line.match(SETEXT_HEADING_REGEXP)
+          underline_index += 1
+        end
+        return false if underline_index >= state.lines.length
+
+        match = state.lines[underline_index].match(SETEXT_HEADING_REGEXP)
         return false unless match
 
         level = match[1][0] == "=" ? 1 : 2
-        content = line.strip
+        content = state.lines[state.line...underline_index].join("\n").strip
         start_line = state.line
 
         state.tokens << Token.new(
@@ -280,14 +286,14 @@ module Mdlint
           nesting: 1,
           level: state.level,
           markup: match[1][0],
-          map: [start_line, start_line + 2]
+          map: [start_line, underline_index + 1]
         )
 
         state.tokens << Token.new(
           type: :inline,
           content: content,
           level: state.level + 1,
-          map: [start_line, start_line + 1]
+          map: [start_line, underline_index]
         )
 
         state.tokens << Token.new(
@@ -298,8 +304,7 @@ module Mdlint
           markup: match[1][0]
         )
 
-        state.next_line
-        state.next_line
+        state.line = underline_index + 1
         true
       end
 
@@ -418,12 +423,13 @@ module Mdlint
           nesting: 1,
           level: state.level,
           markup: marker,
+          attrs: { tight: true },
           map: [start_line, nil]
         )
         list_token_index = state.tokens.length - 1
 
         state.level += 1
-        parse_list_items(state, BULLET_LIST_REGEXP, marker)
+        parse_list_items(state, BULLET_LIST_REGEXP, marker, match[1].length)
         state.level -= 1
 
         state.tokens[list_token_index].map[1] = state.line
@@ -454,13 +460,13 @@ module Mdlint
           nesting: 1,
           level: state.level,
           markup: delimiter,
-          attrs: { start: start_num },
+          attrs: { start: start_num, tight: true },
           map: [start_line, nil]
         )
         list_token_index = state.tokens.length - 1
 
         state.level += 1
-        parse_ordered_list_items(state, delimiter)
+        parse_ordered_list_items(state, delimiter, match[1].length)
         state.level -= 1
 
         state.tokens[list_token_index].map[1] = state.line
@@ -476,11 +482,12 @@ module Mdlint
         true
       end
 
-      def parse_list_items(state, pattern, _marker)
+      def parse_list_items(state, pattern, _marker, base_indent = 0)
         while !state.eof?
           line = state.current_line
           match = line.match(pattern)
           break unless match
+          break if line.match?(HR_REGEXP) && match[1].length <= base_indent
 
           item_start = state.line
           content = line.sub(pattern, "")
@@ -490,7 +497,7 @@ module Mdlint
             tag: "li",
             nesting: 1,
             level: state.level,
-            attrs: task_attributes(content),
+            attrs: task_attributes(content).merge(tight: true),
             map: [item_start, nil]
           )
           item_token_index = state.tokens.length - 1
@@ -501,8 +508,13 @@ module Mdlint
           content = strip_task_marker(content)
 
           item_content_lines = [content]
+          nested_lines = []
+          nested_start_line = state.line
           while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
-            if state.current_line.match?(/\A\s+/)
+            if nested_lines.any? && state.current_line.match?(/\A\s+/)
+              nested_lines << dedent_list_line(state.current_line, base_indent)
+              state.next_line
+            elsif state.current_line.match?(/\A\s+/)
               item_content_lines << state.raw_line.sub(/\A\s+/, "")
               state.next_line
             else
@@ -510,7 +522,27 @@ module Mdlint
             end
           end
 
+          while !state.eof? && !state.blank_line?
+            nested_match = state.current_line.match(pattern)
+            break unless nested_match && nested_match[1].length > base_indent
+
+            nested_lines << dedent_list_line(state.current_line, base_indent)
+            state.next_line
+            while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
+              break unless state.current_line.match?(/\A\s+/)
+
+              nested_lines << dedent_list_line(state.current_line, base_indent)
+              state.next_line
+            end
+          end
+
+          loose_content = collect_loose_item_content(state, pattern, base_indent)
+
           paragraph_content = item_content_lines.join("\n").strip
+          if paragraph_content.match?(HR_REGEXP)
+            state.tokens << Token.new(type: :hr, tag: "hr", markup: paragraph_content.strip[0], map: [item_start, state.line])
+            paragraph_content = ""
+          end
           unless paragraph_content.empty?
             state.tokens << Token.new(
               type: :paragraph_open,
@@ -534,6 +566,9 @@ module Mdlint
               level: state.level
             )
           end
+
+          append_nested_tokens(state, nested_lines, nested_start_line)
+          append_loose_paragraph(state, loose_content, item_start) if loose_content
 
           state.level -= 1
           state.tokens[item_token_index].map[1] = state.line
@@ -549,13 +584,14 @@ module Mdlint
         end
       end
 
-      def parse_ordered_list_items(state, delimiter)
+      def parse_ordered_list_items(state, delimiter, base_indent = 0)
         pattern = /\A( {0,3})(\d{1,9})([#{Regexp.escape(delimiter)}])\s+/
 
         while !state.eof?
           line = state.current_line
           match = line.match(pattern)
           break unless match
+          break if line.match?(HR_REGEXP) && match[1].length <= base_indent
 
           item_start = state.line
           content = line.sub(pattern, "")
@@ -565,7 +601,7 @@ module Mdlint
             tag: "li",
             nesting: 1,
             level: state.level,
-            attrs: task_attributes(content),
+            attrs: task_attributes(content).merge(tight: true),
             map: [item_start, nil]
           )
           item_token_index = state.tokens.length - 1
@@ -576,8 +612,13 @@ module Mdlint
           content = strip_task_marker(content)
 
           item_content_lines = [content]
+          nested_lines = []
+          nested_start_line = state.line
           while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
-            if state.current_line.match?(/\A\s+/)
+            if nested_lines.any? && state.current_line.match?(/\A\s+/)
+              nested_lines << dedent_list_line(state.current_line, base_indent)
+              state.next_line
+            elsif state.current_line.match?(/\A\s+/)
               item_content_lines << state.raw_line.sub(/\A\s+/, "")
               state.next_line
             else
@@ -585,7 +626,27 @@ module Mdlint
             end
           end
 
+          while !state.eof? && !state.blank_line?
+            nested_match = state.current_line.match(pattern)
+            break unless nested_match && nested_match[1].length > base_indent
+
+            nested_lines << dedent_list_line(state.current_line, base_indent)
+            state.next_line
+            while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
+              break unless state.current_line.match?(/\A\s+/)
+
+              nested_lines << dedent_list_line(state.current_line, base_indent)
+              state.next_line
+            end
+          end
+
+          loose_content = collect_loose_item_content(state, pattern, base_indent)
+
           paragraph_content = item_content_lines.join("\n").strip
+          if paragraph_content.match?(HR_REGEXP)
+            state.tokens << Token.new(type: :hr, tag: "hr", markup: paragraph_content.strip[0], map: [item_start, state.line])
+            paragraph_content = ""
+          end
           unless paragraph_content.empty?
             state.tokens << Token.new(
               type: :paragraph_open,
@@ -610,6 +671,9 @@ module Mdlint
             )
           end
 
+          append_nested_tokens(state, nested_lines, nested_start_line)
+          append_loose_paragraph(state, loose_content, item_start) if loose_content
+
           state.level -= 1
           state.tokens[item_token_index].map[1] = state.line
 
@@ -621,6 +685,64 @@ module Mdlint
           )
 
           state.skip_blank_lines
+        end
+      end
+
+      def dedent_list_line(line, base_indent)
+        line[(base_indent + 2)..] || line.lstrip
+      end
+
+      def append_nested_tokens(state, nested_lines, start_line)
+        return if nested_lines.empty?
+
+        nested_tokens = BlockParser.new(@options).parse(nested_lines.join("\n"))
+        nested_tokens.each do |token|
+          token.level += state.level
+          token.map = token.map.map { |line| line + start_line } if token.map
+          state.tokens << token
+        end
+      end
+
+      def collect_loose_item_content(state, pattern, base_indent)
+        return unless state.blank_line?
+
+        state.skip_blank_lines
+        return if state.eof?
+
+        next_match = state.current_line.match(pattern)
+        if next_match && next_match[1].length <= base_indent
+          mark_current_list_loose(state)
+          return
+        end
+        return unless state.current_line.match?(/\A\s+/)
+
+        mark_current_list_loose(state)
+        content_lines = []
+        while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
+          break unless state.current_line.match?(/\A\s+/)
+
+          content_lines << state.raw_line.sub(/\A\s+/, "")
+          state.next_line
+        end
+        content_lines.join("\n").strip
+      end
+
+      def append_loose_paragraph(state, content, start_line)
+        return if content.to_s.empty?
+
+        state.tokens << Token.new(type: :paragraph_open, tag: "p", nesting: 1, level: state.level, map: [start_line, state.line])
+        state.tokens << Token.new(type: :inline, content: content, level: state.level + 1, map: [start_line, state.line])
+        state.tokens << Token.new(type: :paragraph_close, tag: "p", nesting: -1, level: state.level)
+      end
+
+      def mark_current_list_loose(state)
+        list_index = state.tokens.rindex { |token| %i[bullet_list_open ordered_list_open].include?(token.type) }
+        return unless list_index
+
+        state.tokens[list_index].attrs[:tight] = false
+        state.tokens[(list_index + 1)..].to_a.reverse_each do |token|
+          break if %i[bullet_list_open ordered_list_open].include?(token.type)
+          token.attrs[:tight] = false if token.type == :list_item_open
         end
       end
 
@@ -769,7 +891,7 @@ module Mdlint
 
         state.tokens << Token.new(
           type: :inline,
-          content: content_lines.join("\n"),
+          content: content_lines.join("\n").strip,
           level: state.level + 1,
           map: [start_line, state.line]
         )
@@ -787,6 +909,30 @@ module Mdlint
       def alert_attributes(content_lines)
         match = content_lines.first.to_s.match(/\A\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i)
         match ? { alert: match[1].downcase } : {}
+      end
+
+      def block_boundary?(line)
+        line.match?(ATX_HEADING_REGEXP) || line.match?(FENCE_OPEN_REGEXP) ||
+          line.match?(HR_REGEXP) || line.match?(BLOCKQUOTE_REGEXP) ||
+          line.match?(BULLET_LIST_REGEXP) || line.match?(ORDERED_LIST_REGEXP) ||
+          line.match?(REFERENCE_DEF_REGEXP) || line.match?(FOOTNOTE_DEF_REGEXP)
+      end
+
+      def find_directive_closing_line(state, name)
+        depth = 1
+        index = state.line + 1
+        while index < state.lines.length
+          candidate = state.lines[index]
+          nested = candidate.match(/\A {0,3}:::([A-Za-z][\w-]*)(?:\s+.*)?\s*\z/)
+          if nested
+            depth += 1
+          elsif candidate.strip == ":::"
+            depth -= 1
+            return index if depth.zero?
+          end
+          index += 1
+        end
+        nil
       end
 
       def strip_code_indent(raw_line, expanded_line)

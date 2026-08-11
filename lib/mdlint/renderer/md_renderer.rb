@@ -6,7 +6,7 @@ require_relative "../text_width"
 module Mdlint
   module Renderer
     class MdRenderer
-      BULLET_MARKERS = %w[- *].freeze
+      BULLET_MARKERS = ["-"].freeze
       HORIZONTAL_RULE = "_" * 70
       LINE_START_PROHIBITED = /\A[、。，．！？!?、)]|\A[）】」』〉》〕］｝…]/
       LINE_END_PROHIBITED = /[「『（【〈《〔［｛]\z/
@@ -248,7 +248,7 @@ module Mdlint
       end
 
       def render_bullet_list(tokens, start_index, output)
-        marker = BULLET_MARKERS[@bullet_list_depth % 2]
+        marker = BULLET_MARKERS[@bullet_list_depth % BULLET_MARKERS.length]
         @bullet_list_depth += 1
         i = start_index + 1
 
@@ -544,12 +544,17 @@ module Mdlint
             i = close_index
           when :image
             alt = token.attrs[:alt] || token.content || ""
-            src = token.attrs[:src] || ""
-            title = token.attrs[:title]
-            if title
-              output << "![#{alt}](#{src} \"#{title}\")"
+            reference = @reference_definitions[token.attrs[:reference_label]]
+            src = token.attrs[:src] || reference&.fetch(:url, nil)
+            unless src
+              output << "![#{alt}]"
             else
-              output << "![#{alt}](#{src})"
+              title = token.attrs[:title] || reference&.fetch(:title, nil)
+              if title
+                output << "![#{alt}](#{src} \"#{title}\")"
+              else
+                output << "![#{alt}](#{src})"
+              end
             end
           when :softbreak
             output << "\n"

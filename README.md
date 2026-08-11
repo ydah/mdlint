@@ -247,7 +247,7 @@ long content is allowed here
 | Element | Style |
 |---------|-------|
 | Headings | ATX style only (`#`) |
-| Bullet lists | Hyphen (`-`), alternating for nested |
+| Bullet lists | Hyphen (`-`) at every nesting level |
 | Ordered lists | All items use `1.` (minimizes diffs) |
 | Code blocks | Fenced style (`` ``` ``) |
 | Horizontal rules | 70 underscores |
@@ -301,6 +301,7 @@ ruby script/commonmark_compatibility.rb spec/fixtures/commonmark_smoke.json
 ITERATIONS=100 ruby benchmark/compare.rb README.md
 # Property tests cover formatter idempotence and HTML meaning preservation.
 bundle exec rspec spec/mdlint/property_spec.rb
+bundle exec rake property
 ```
 
 ## Contributing

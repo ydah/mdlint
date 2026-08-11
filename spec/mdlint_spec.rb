@@ -167,6 +167,13 @@ RSpec.describe Mdlint do
       expect(result).to include("<p>Content</p>")
     end
 
+    it "renders nested directives without closing the outer block early" do
+      result = Mdlint.html(":::note Outer\n:::tip Inner\nContent\n:::\nAfter\n:::\n")
+
+      expect(result.scan('class="markdown-directive markdown-directive-').length).to eq(2)
+      expect(result).to include("After")
+    end
+
     it "preserves rendered meaning through formatting" do
       input = "#  Title\n\nParagraph with **bold** and [link](https://example.com).\n"
 

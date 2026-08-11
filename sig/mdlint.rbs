@@ -33,6 +33,7 @@ module Mdlint
     end
     def self.register_rule: (Class rule_class) -> Class
     def self.register_dialect: (Symbol | String name, ?features: Array[Symbol]) -> Symbol
+    def self.unregister_rule: (Class rule_class) -> void
     def self.load: (String path) -> untyped
   end
 
@@ -98,7 +99,8 @@ module Mdlint
     class RuleRegistry
       def self.all: () -> Array[singleton(Rule)]
       def self.find: (String rule_id) -> singleton(Rule)?
-      def self.register: (singleton(Rule) rule_class) -> void
+    def self.register: (singleton(Rule) rule_class) -> void
+    def self.unregister: (Class rule_class) -> void
       def self.normalize_id: (String rule_id) -> String
     end
   end
