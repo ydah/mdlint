@@ -1,15 +1,28 @@
 # frozen_string_literal: true
 
 require "cgi"
+require "uri"
 
 module Mdlint
   module Renderer
     class HtmlRenderer
+      NAMED_ENTITIES = {
+        "amp" => "&", "apos" => "'", "gt" => ">", "lt" => "<", "quot" => '"',
+        "nbsp" => "\u00a0", "copy" => "©", "reg" => "®", "trade" => "™",
+        "AElig" => "Æ", "aelig" => "æ", "Dcaron" => "Ď", "dcaron" => "ď",
+        "ouml" => "ö", "Ouml" => "Ö", "uuml" => "ü", "Uuml" => "Ü",
+        "frac12" => "½", "frac14" => "¼", "frac34" => "¾", "HilbertSpace" => "ℋ",
+        "DifferentialD" => "ⅆ", "ClockwiseContourIntegral" => "∲", "ngE" => "≧̸"
+      }.freeze
+
       def initialize(options = {})
         @options = options
+        @reference_definitions = {}
       end
 
       def render(tokens)
+        @reference_definitions = {}
+        collect_reference_definitions(tokens)
         render_sequence(tokens, 0).first
       end
 
@@ -50,10 +63,10 @@ module Mdlint
             output << fenced_code(token)
             index += 1
           when :code_block
-            output << "<pre><code>#{escape(token.content)}</code></pre>\n"
+            output << "<pre><code>#{escape_raw(token.content)}</code></pre>\n"
             index += 1
           when :math_block
-            output << "<div class=\"math-block\">#{escape(token.content)}</div>\n"
+            output << "<div class=\"math-block\">#{escape_raw(token.content)}</div>\n"
             index += 1
           when :footnote_definition
             label = escape_attribute(token.attrs[:label])
@@ -61,7 +74,7 @@ module Mdlint
             output << "<div class=\"footnote\" id=\"fn-#{label}\"><sup>#{label}</sup> #{content}</div>\n"
             index += 1
           when :hr
-            output << "<hr>\n"
+            output << "<hr />\n"
             index += 1
           when :html_block
             output << token.content
@@ -111,7 +124,7 @@ module Mdlint
             output << "<#{tag}>#{render_inline_tokens(tokens[(index + 1)...close_index])}</#{tag}>"
             index = close_index
           when :code_inline
-            output << "<code>#{escape(token.content.strip)}</code>"
+            output << "<code>#{escape_raw(token.content.strip)}</code>"
           when :math_inline
             output << "<span class=\"math-inline\">#{escape(token.content)}</span>"
           when :footnote_ref
@@ -119,17 +132,20 @@ module Mdlint
             output << "<sup><a href=\"#fn-#{label}\">#{label}</a></sup>"
           when :link_open
             close_index = find_close(tokens, index, :link_close)
-            href = escape_attribute(token.attrs[:href].to_s)
-            output << "<a href=\"#{href}\">#{render_inline_tokens(tokens[(index + 1)...close_index])}</a>"
+            reference = @reference_definitions[token.attrs[:reference_label]]
+            href = token.attrs[:href] || reference&.fetch(:url, "") || ""
+            title = token.attrs[:title] || reference&.fetch(:title, nil)
+            title_attribute = title ? " title=\"#{escape_attribute(title)}\"" : ""
+            output << "<a href=\"#{escape_url_attribute(href)}\"#{title_attribute}>#{render_inline_tokens(tokens[(index + 1)...close_index])}</a>"
             index = close_index
           when :image
-            attrs = "src=\"#{escape_attribute(token.attrs[:src])}\" alt=\"#{escape_attribute(token.attrs[:alt] || token.content)}\""
+            attrs = "src=\"#{escape_url_attribute(token.attrs[:src])}\" alt=\"#{escape_attribute(token.attrs[:alt] || token.content)}\""
             attrs += " title=\"#{escape_attribute(token.attrs[:title])}\"" if token.attrs[:title]
             output << "<img #{attrs}>"
           when :softbreak
             output << "\n"
           when :hardbreak
-            output << "<br>\n"
+            output << "<br />\n"
           when :html_inline
             output << token.content
           end
@@ -148,6 +164,18 @@ module Mdlint
           "<tr>#{cells}</tr>\n"
         end.join
         "<table>\n<thead><tr>#{header}</tr></thead>\n<tbody>\n#{body}</tbody>\n</table>\n"
+      end
+
+      def collect_reference_definitions(tokens)
+        tokens.each do |token|
+          next unless token.type == :reference_definition
+
+          label = token.attrs[:label]
+          @reference_definitions[label] ||= {
+            url: token.attrs[:url],
+            title: token.attrs[:title]
+          }
+        end
       end
 
       def render_directive(token)
@@ -181,7 +209,7 @@ module Mdlint
       def fenced_code(token)
         language = token.info.to_s.split.first
         class_attribute = language && !language.empty? ? " class=\"language-#{escape_attribute(language)}\"" : ""
-        "<pre><code#{class_attribute}>#{escape(token.content)}</code></pre>\n"
+        "<pre><code#{class_attribute}>#{escape_raw(token.content)}</code></pre>\n"
       end
 
       def task_checkbox(checked)
@@ -194,11 +222,42 @@ module Mdlint
       end
 
       def escape(value)
-        CGI.escapeHTML(value.to_s)
+        CGI.escapeHTML(decode_entities(value.to_s)).gsub("&#39;", "'")
       end
 
       def escape_attribute(value)
-        escape(value).gsub("`", "&#39;")
+        CGI.escapeHTML(decode_entities(value.to_s)).gsub("`", "&#39;")
+      end
+
+      def escape_url_attribute(value)
+        encoded = value.to_s.gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1')
+        encoded = decode_entities(encoded)
+        encoded = URI::DEFAULT_PARSER.escape(encoded, /[^A-Za-z0-9\-._~;\/:?@&=+$,#%!()*']/)
+        CGI.escapeHTML(encoded).gsub("`", "&#39;")
+      end
+
+      def escape_raw(value)
+        CGI.escapeHTML(value.to_s).gsub("&#39;", "'")
+      end
+
+      def decode_entities(value)
+        value.gsub(/&#x([0-9a-f]+);|&#([0-9]+);|&([A-Za-z][A-Za-z0-9]+);/i) do
+          codepoint = if Regexp.last_match(1)
+                        Integer(Regexp.last_match(1).to_s, 16)
+                      elsif Regexp.last_match(2)
+                        Regexp.last_match(2).to_i
+                      end
+          if codepoint
+            begin
+              invalid = codepoint.zero? || codepoint > 0x10ffff || (0xd800..0xdfff).cover?(codepoint)
+              invalid ? "\uFFFD" : [codepoint].pack("U")
+            rescue RangeError
+              "\uFFFD"
+            end
+          else
+            NAMED_ENTITIES.fetch(Regexp.last_match(3), Regexp.last_match(0))
+          end
+        end
       end
     end
   end

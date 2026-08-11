@@ -20,7 +20,7 @@ module Mdlint
       HTML_BLOCK_START_4 = /\A {0,3}<![A-Z]/
       HTML_BLOCK_START_5 = /\A {0,3}<!\[CDATA\[/
       HTML_BLOCK_START_6 = /\A {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
-      HTML_BLOCK_START_7 = /\A {0,3}<\/?[A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?(?:\s[^>]*|\/?>)/
+      HTML_BLOCK_START_7 = /\A {0,3}<\/?(?:a\b|[A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?)(?:\s[^>]*|\/?>)/
       # Reference definition: [label]: url "title"
       REFERENCE_DEF_REGEXP = /\A {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*$/
       FOOTNOTE_DEF_REGEXP = /\A {0,3}\[\^([^\]]+)\]:\s*(.*?)\s*$/
@@ -75,7 +75,7 @@ module Mdlint
 
         closing_line += state.line + 1
         start_line = state.line
-        content = state.lines[start_line..closing_line].join("\n")
+        content = state.raw_lines[start_line..closing_line].join("\n")
         content += "\n" if closing_line < state.lines.length - 1 || state.src.end_with?("\n")
         state.tokens << Token.new(
           type: :directive,
@@ -94,7 +94,7 @@ module Mdlint
         content_lines = [state.current_line]
         state.next_line
         until state.eof?
-          content_lines << state.current_line
+          content_lines << state.raw_line
           state.next_line
           break if content_lines.last.match?(MATH_BLOCK_REGEXP)
         end
@@ -108,7 +108,7 @@ module Mdlint
       end
 
       def parse_table(state)
-        return false unless @dialect.gfm?
+        return false unless @dialect.feature?(:tables)
         return false unless table_delimiter?(state.peek_line)
         return false unless state.current_line.include?("|")
 
@@ -187,7 +187,7 @@ module Mdlint
 
         closing_line += state.line + 1
         start_line = state.line
-        raw_lines = state.lines[start_line..closing_line]
+        raw_lines = state.raw_lines[start_line..closing_line]
         content = raw_lines.join("\n")
         content += "\n" if closing_line < state.lines.length - 1 || state.src.end_with?("\n")
 
@@ -323,7 +323,7 @@ module Mdlint
             state.next_line
             break
           end
-          content_lines << current
+          content_lines << state.raw_line
           state.next_line
         end
 
@@ -362,7 +362,7 @@ module Mdlint
         content_lines = []
 
         while !state.eof? && state.current_line.match?(BLOCKQUOTE_REGEXP)
-          content_lines << state.current_line.sub(BLOCKQUOTE_REGEXP, "")
+          content_lines << state.raw_line.sub(BLOCKQUOTE_REGEXP, "")
           state.next_line
         end
 
@@ -503,7 +503,7 @@ module Mdlint
           item_content_lines = [content]
           while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
             if state.current_line.match?(/\A\s+/)
-              item_content_lines << state.current_line.sub(/\A\s+/, "")
+              item_content_lines << state.raw_line.sub(/\A\s+/, "")
               state.next_line
             else
               break
@@ -578,7 +578,7 @@ module Mdlint
           item_content_lines = [content]
           while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
             if state.current_line.match?(/\A\s+/)
-              item_content_lines << state.current_line.sub(/\A\s+/, "")
+              item_content_lines << state.raw_line.sub(/\A\s+/, "")
               state.next_line
             else
               break
@@ -671,7 +671,7 @@ module Mdlint
         content_lines = []
 
         while !state.eof? && state.current_line.match?(CODE_BLOCK_INDENT)
-          content_lines << state.current_line.sub(CODE_BLOCK_INDENT, "")
+          content_lines << strip_code_indent(state.raw_line, state.current_line)
           state.next_line
         end
 
@@ -753,7 +753,7 @@ module Mdlint
             break if content_lines.any?
           end
 
-          content_lines << line
+          content_lines << state.raw_line
           state.next_line
         end
 
@@ -789,8 +789,22 @@ module Mdlint
         match ? { alert: match[1].downcase } : {}
       end
 
+      def strip_code_indent(raw_line, expanded_line)
+        return raw_line unless expanded_line.start_with?("    ")
+
+        consumed = 0
+        index = 0
+        raw_line.each_char do |character|
+          break if consumed >= 4
+
+          consumed += character == "\t" ? 4 - (consumed % 4) : 1
+          index += 1
+        end
+        raw_line[index..] || ""
+      end
+
       def task_attributes(content)
-        return {} unless @dialect.gfm?
+        return {} unless @dialect.feature?(:task_lists)
 
         match = content.match(/\A\[([ xX])\]\s+/)
         return {} unless match
@@ -799,7 +813,7 @@ module Mdlint
       end
 
       def strip_task_marker(content)
-        return content unless @dialect.gfm?
+        return content unless @dialect.feature?(:task_lists)
 
         content.sub(/\A\[[ xX]\]\s+/, "")
       end

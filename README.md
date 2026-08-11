@@ -34,6 +34,8 @@
 - Parallel linting with a content/configuration-hash cache
 - Japanese technical-writing preset, code-block syntax checks, link/anchor checks, and TOC updates
 - Optional language commands for code-block validation and formatting
+- 29 built-in lint rules with Markdownlint-compatible IDs and aliases
+- Stable plugin registration for custom rules and dialect feature sets
 
 ## Quickstart
 
@@ -194,6 +196,9 @@ fail_level: error
 # Custom rule files
 plugins:
   - "./rules/my_rule.rb"
+
+# A plugin may register a feature subset for a project-specific dialect.
+# Mdlint::Plugin.register_dialect(:docs, features: [:tables])
 ```
 
 ## Lint Rules
@@ -213,6 +218,19 @@ Key rules:
 - `--code-block-command python='python -m py_compile -'` adds opt-in validation for another language; commands receive block content on stdin.
 - `--code-block-formatter python='black -'` can rewrite an external language block; commands are bounded by `code_block_timeout` (10 seconds by default).
 - `--toc` regenerates content between paired `<!-- toc -->` or `<!-- toc:start -->` / `<!-- toc:end -->` markers.
+
+Plugins can use the stable API from a required Ruby file:
+
+```ruby
+class MyRule < Mdlint::Linter::Rule
+  self.rule_id = "PL001"
+  self.aliases = ["my-rule"]
+  self.description = "Project-specific Markdown rule"
+end
+
+Mdlint::Plugin.register_rule(MyRule)
+Mdlint::Plugin.register_dialect(:docs, features: [:tables, :task_lists])
+```
 
 Inline directives can suppress diagnostics for a section or one line:
 
@@ -281,6 +299,8 @@ bundle exec rspec spec/commonmark_spec.rb
 ITERATIONS=100 ruby benchmark/format.rb README.md
 ruby script/commonmark_compatibility.rb spec/fixtures/commonmark_smoke.json
 ITERATIONS=100 ruby benchmark/compare.rb README.md
+# Property tests cover formatter idempotence and HTML meaning preservation.
+bundle exec rspec spec/mdlint/property_spec.rb
 ```
 
 ## Contributing

@@ -13,6 +13,7 @@ require_relative "linter/rules/line_length"
 require_relative "linter/rules/link_check"
 require_relative "linter/rules/japanese"
 require_relative "linter/rules/code_block_syntax"
+require_relative "linter/rules/source_style"
 
 module Mdlint
   module Linter

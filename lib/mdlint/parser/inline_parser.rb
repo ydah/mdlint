@@ -40,7 +40,12 @@ module Mdlint
             text_buffer = ""
             tokens << Token.new(type: :math_inline, content: match[1])
             pos += match[0].length
-          elsif (match = remaining.match(/\A\\([\\`*_\[\]()#+\-.!{}<>])/))
+          elsif remaining.start_with?("\\\n")
+            flush_text(text_buffer, tokens)
+            text_buffer = ""
+            tokens << Token.new(type: :hardbreak, tag: "br")
+            pos += 2
+          elsif (match = remaining.match(/\A#{ESCAPE_REGEXP}/))
             flush_text(text_buffer, tokens)
             text_buffer = ""
             tokens << Token.new(type: :text, content: match[1])
@@ -170,7 +175,7 @@ module Mdlint
               text_buffer += remaining[0]
               pos += 1
             end
-          elsif @dialect.gfm? && remaining.start_with?("~~")
+          elsif @dialect.feature?(:strikethrough) && remaining.start_with?("~~")
             if (match = remaining.match(/\A~~(?!\s)(.+?)(?<!\s)~~/m))
               flush_text(text_buffer, tokens)
               text_buffer = ""
@@ -252,7 +257,7 @@ module Mdlint
               text_buffer += remaining[0]
               pos += 1
             end
-          elsif @dialect.gfm? && (match = remaining.match(/\A((?:https?|ftp):\/\/[^\s<]+)/))
+          elsif @dialect.feature?(:bare_autolinks) && (match = remaining.match(/\A((?:https?|ftp):\/\/[^\s<]+)/))
             flush_text(text_buffer, tokens)
             text_buffer = ""
             href = match[1].sub(/[.,!?;:]\z/, "")

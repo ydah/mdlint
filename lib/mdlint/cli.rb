@@ -176,8 +176,8 @@ module Mdlint
     def load_plugins
       paths = Array(@options[:plugins]) + Array(@options[:require])
       paths.each do |path|
-        require File.expand_path(path, Dir.pwd)
-      rescue LoadError, StandardError => error
+        Mdlint::Plugin.load(path)
+      rescue Mdlint::Plugin::Error => error
         warn "Warning: Could not load rule file #{path}: #{error.message}"
         exit 2
       end

@@ -199,6 +199,24 @@ RSpec.describe Mdlint::Linter do
 
       expect(violations.map(&:rule_id)).to eq(["MD001"])
     end
+
+    it "checks expanded Markdown style rules" do
+      source = "#Title\n>  Quote\n-  item\n\n```text\nvalue\n```\nnext\n"
+
+      expect(Mdlint.lint(source).map(&:rule_id)).to include("MD018", "MD027", "MD030", "MD031")
+    end
+
+    it "checks GFM bare URLs and inline spacing rules" do
+      source = "# Heading\n\nhttps://example.com\n\n* text * and ` code `\n"
+      violations = Mdlint.lint(source, dialect: :gfm)
+
+      expect(violations.map(&:rule_id)).to include("MD034", "MD037", "MD038")
+    end
+
+    it "provides the v0.5 rule set" do
+      expect(Mdlint::Linter::RuleRegistry.all.length).to be_between(20, 30)
+      expect(Mdlint::Linter::RuleRegistry.find("MD047")).not_to be_nil
+    end
   end
 end
 

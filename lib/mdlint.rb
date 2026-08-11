@@ -57,3 +57,7 @@ module Mdlint
     end
   end
 end
+
+require_relative "mdlint/plugin"
+
+require_relative "mdlint/plugin"

@@ -43,7 +43,7 @@ module Mdlint
     def merge_options: (untyped file_options) -> untyped
   end
 
-  class Dialect
+  module Plugin
   end
 
   module Renderer
@@ -83,6 +83,7 @@ module Mdlint
       def render_inline: (untyped token) -> String
       def render_inline_tokens: (untyped tokens) -> String
       def render_table: (untyped token) -> String
+      def collect_reference_definitions: (untyped tokens) -> untyped
       def render_directive: (untyped token) -> String
       def render_cell: (untyped value) -> String
       def fenced_code: (untyped token) -> String
@@ -90,6 +91,9 @@ module Mdlint
       def find_close: (untyped tokens, untyped index, untyped close_type) -> untyped
       def escape: (untyped value) -> String
       def escape_attribute: (untyped value) -> String
+      def escape_url_attribute: (untyped value) -> String
+      def escape_raw: (untyped value) -> String
+      def decode_entities: (untyped value) -> String
     end
   end
 
@@ -98,15 +102,18 @@ module Mdlint
 
     class State
       attr_accessor tokens: untyped
+      attr_reader raw_lines: untyped
       def initialize: (untyped src) -> void
       def eof?: () -> bool
       def current_line: () -> untyped
+      def raw_line: () -> untyped
       def next_line: () -> untyped
       def skip_blank_lines: () -> untyped
       def blank_line?: (?untyped line_num) -> bool
       def remaining_lines: () -> untyped
       def peek_line: (?untyped offset) -> untyped
       def build_line_offsets: () -> untyped
+      def expand_tabs: (untyped line) -> String
     end
 
     class BlockParser
@@ -137,6 +144,7 @@ module Mdlint
       def parse_reference_definition: (untyped state) -> untyped
       def parse_footnote_definition: (untyped state) -> untyped
       def parse_paragraph: (untyped state) -> untyped
+      def strip_code_indent: (untyped raw_line, untyped expanded_line) -> String
       def task_attributes: (untyped content) -> untyped
       def strip_task_marker: (untyped content) -> untyped
       def alert_attributes: (untyped content_lines) -> untyped
@@ -243,6 +251,14 @@ module Mdlint
     end
 
     module Rules
+      module SourceStyleSupport
+        def lines: (untyped source) -> untyped
+        def fenced_lines: (untyped source) -> untyped
+        def outside_fence?: (untyped fence_state) -> bool
+        def line_is_blank?: (untyped line) -> bool
+        def inline_tokens: (untyped tokens) -> untyped
+      end
+
       module JapaneseHelpers
         def each_inline: (untyped tokens) { (untyped token) -> untyped } -> untyped
         def prose_content: (untyped token) -> String
@@ -298,6 +314,43 @@ module Mdlint
       end
       class JapaneseWidth < Rule
         include JapaneseHelpers
+      end
+      class NoHardTabs < Rule
+        include SourceStyleSupport
+      end
+      class NoSpaceAfterHash < Rule
+      end
+      class NoMultipleSpacesAfterHash < Rule
+      end
+      class NoMultipleSpacesAfterBlockquote < Rule
+      end
+      class ListMarkerSpace < Rule
+      end
+      class FencedCodeBlankLines < Rule
+        include SourceStyleSupport
+      end
+      class ListBlankLines < Rule
+        include SourceStyleSupport
+      end
+      class NoBareUrls < Rule
+        include SourceStyleSupport
+      end
+      class NoSpaceInEmphasis < Rule
+        include SourceStyleSupport
+      end
+      class NoSpaceInCode < Rule
+        include SourceStyleSupport
+      end
+      class FencedCodeStyle < Rule
+        include SourceStyleSupport
+      end
+      class SingleTrailingNewline < Rule
+      end
+      class EmphasisStyle < Rule
+        include SourceStyleSupport
+      end
+      class StrongStyle < Rule
+        include SourceStyleSupport
       end
     end
   end

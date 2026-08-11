@@ -182,6 +182,21 @@ RSpec.describe Mdlint do
       expect(formatted).to include("$$\nx^2\n$$")
       expect(Mdlint.html(formatted)).to include("fn-one", "math-block", "math-inline")
     end
+
+    it "renders entities and reference links with decoded attributes" do
+      source = <<~MARKDOWN
+        [foo]
+
+        [foo]: /f&ouml;&ouml; "f&ouml;&ouml;"
+      MARKDOWN
+
+      expect(Mdlint.html(source)).to include('<a href="/f%C3%B6%C3%B6" title="föö">foo</a>')
+      expect(Mdlint.html("&nbsp; &copy; &#35;\n")).to include("  © #")
+    end
+
+    it "preserves tabs inside indented code content" do
+      expect(Mdlint.html("    a\ta\n")).to eq("<pre><code>a\ta\n</code></pre>\n")
+    end
   end
 
   describe ".parse" do

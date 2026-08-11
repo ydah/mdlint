@@ -48,6 +48,9 @@ module Mdlint
         attr_reader :rules
 
         def register(rule_class)
+          return if rule_class.rule_id && @rules.any? { |existing| existing.rule_id == rule_class.rule_id }
+          return if @rules.include?(rule_class)
+
           @rules << rule_class
         end
 

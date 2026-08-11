@@ -17,9 +17,23 @@ module Mdlint
 
   class Dialect
     attr_reader name: Symbol
-    def initialize: (?Symbol | String name) -> void
+    attr_reader features: Array[Symbol]
+    def initialize: (?Symbol | String name, ?features: Array[Symbol]) -> void
     def gfm?: () -> bool
+    def feature?: (Symbol feature) -> bool
+    def to_sym: () -> Symbol
+    def self.features: () -> Hash[Symbol, Array[Symbol]]
     def self.resolve: (untyped value) -> Dialect
+    def self.register: (Symbol | String name, ?features: Array[Symbol]) -> Symbol
+    def self.registered: () -> Array[Symbol]
+  end
+
+  module Plugin
+    class Error < Mdlint::Error
+    end
+    def self.register_rule: (Class rule_class) -> Class
+    def self.register_dialect: (Symbol | String name, ?features: Array[Symbol]) -> Symbol
+    def self.load: (String path) -> untyped
   end
 
   module Parser
