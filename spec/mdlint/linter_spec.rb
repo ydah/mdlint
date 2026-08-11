@@ -51,6 +51,40 @@ RSpec.describe Mdlint::Linter do
       md001_violations = violations.select { |v| v.rule_id == "MD001" }
       expect(md001_violations).to be_empty
     end
+
+    it "supports line length settings" do
+      source = "# Heading\n\nThis line is intentionally longer than ten characters.\n"
+      violations = Mdlint.lint(source, rules: { "MD013" => { line_length: 10 } })
+
+      expect(violations.map(&:rule_id)).to include("MD013")
+    end
+
+    it "supports inline disable and enable directives" do
+      source = <<~MARKDOWN
+        # Heading
+        <!-- mdlint-disable MD001 -->
+        ### Disabled
+        <!-- mdlint-enable MD001 -->
+        ##### Enabled
+      MARKDOWN
+
+      violations = Mdlint.lint(source)
+
+      expect(violations.map(&:rule_id)).to eq(["MD001"])
+      expect(violations.first.line).to eq(5)
+    end
+
+    it "does not apply directives inside fenced code" do
+      source = <<~MARKDOWN
+        # Heading
+        ```markdown
+        <!-- mdlint-disable MD001 -->
+        ```
+        ### Jump
+      MARKDOWN
+
+      expect(Mdlint.lint(source).map(&:rule_id)).to include("MD001")
+    end
   end
 
   describe "rule disabling" do
@@ -76,6 +110,10 @@ RSpec.describe Mdlint::Linter do
       source = "# Heading\n\n### Jump\n"
 
       expect(Mdlint::Linter.fix(source, rules: ["MD001"])).to eq(source)
+    end
+
+    it "fixes setext headings through the string contract" do
+      expect(Mdlint.fix("Title\n---\n")).to eq("## Title\n")
     end
 
     it "applies severity configured for a rule" do

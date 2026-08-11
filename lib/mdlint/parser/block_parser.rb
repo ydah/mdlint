@@ -144,8 +144,6 @@ module Mdlint
       end
 
       def parse_setext_heading(state)
-        return false if state.line.zero?
-
         line = state.current_line
         return false if line.match?(/\A\s*\z/)
 
@@ -513,10 +511,19 @@ module Mdlint
         start_line = state.line
         content_lines = []
 
-        until state.eof?
-          content_lines << state.current_line
-          state.next_line
-          break if state.blank_line?
+        if line.match?(HTML_BLOCK_START_2)
+          until state.eof?
+            current_line = state.current_line
+            content_lines << current_line
+            state.next_line
+            break if current_line.include?("-->")
+          end
+        else
+          until state.eof?
+            content_lines << state.current_line
+            state.next_line
+            break if state.blank_line?
+          end
         end
 
         state.tokens << Token.new(

@@ -23,8 +23,25 @@ module Mdlint
           @violations
         end
 
-        def fix(_tokens, source)
-          source
+        def fix(tokens, source)
+          lines = source.lines
+          heading_tokens = tokens.select do |token|
+            token.type == :heading_open && token.markup && !token.markup.start_with?("#")
+          end
+
+          heading_tokens.reverse_each do |token|
+            start_line, end_line = token.map || []
+            next unless start_line && end_line && end_line == start_line + 2
+            next unless lines[start_line] && lines[start_line + 1]
+
+            prefix, content = lines[start_line].match(/\A(\s*(?:>\s*)*)(.*?)(?:\r?\n)?\z/).captures
+            newline = lines[start_line].end_with?("\r\n") ? "\r\n" : "\n"
+            level = token.tag == "h1" ? "#" : "##"
+            lines[start_line] = "#{prefix}#{level} #{content.strip}#{newline}"
+            lines[start_line + 1] = nil
+          end
+
+          lines.compact.join
         end
       end
     end

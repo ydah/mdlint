@@ -37,6 +37,12 @@ RSpec.describe Mdlint::Parser do
       expect(inline.content).to eq("Title")
     end
 
+    it "parses a setext heading on the first line" do
+      tokens = Mdlint.parse("Title\n---\n")
+
+      expect(tokens.find { |t| t.type == :heading_open }.tag).to eq("h2")
+    end
+
     it "parses ATX headings and trims closing hashes" do
       tokens = Mdlint.parse("# Title ###\n")
       inline = tokens.find { |t| t.type == :inline }

@@ -10,7 +10,7 @@ module Mdlint
         @message = message
         @line = line
         @column = column
-        @severity = severity
+        @severity = severity.to_sym
         @fixable = fixable
       end
 
@@ -29,6 +29,21 @@ module Mdlint
 
       def warning?
         @severity == :warning
+      end
+
+      def info?
+        @severity == :info
+      end
+
+      def to_h
+        {
+          rule_id: @rule_id,
+          message: @message,
+          line: @line,
+          column: @column,
+          severity: @severity,
+          fixable: @fixable
+        }
       end
     end
   end

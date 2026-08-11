@@ -92,5 +92,30 @@ RSpec.describe Mdlint::CLI do
         expect { described_class.new(["--wrap", "bad", path]).run }.to output(/Invalid wrap mode/).to_stderr
       end
     end
+
+    it "runs lint as a subcommand" do
+      original_stdin = $stdin
+      $stdin = StringIO.new("# Heading\n\n### Jump\n")
+
+      expect { described_class.new(["lint"]).run }.to output(/stdin:\[MD001\]/).to_stdout.and raise_error(SystemExit) do |error|
+        expect(error.status).to eq(1)
+      end
+    ensure
+      $stdin = original_stdin
+    end
+
+    it "honors fail level for lint diagnostics" do
+      original_stdin = $stdin
+      $stdin = StringIO.new("# Heading\n\n### Jump\n")
+
+      expect { described_class.new(["lint", "--fail-level", "error"]).run }.to output(/MD001/).to_stdout
+    ensure
+      $stdin = original_stdin
+    end
+
+    it "lists and explains rules" do
+      expect { described_class.new(["--list-rules"]).run }.to output(/MD001.*heading-increment/m).to_stdout.and raise_error(SystemExit)
+      expect { described_class.new(["--explain", "heading-increment"]).run }.to output(/Heading levels/).to_stdout.and raise_error(SystemExit)
+    end
   end
 end

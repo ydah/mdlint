@@ -17,7 +17,10 @@ module Mdlint
       quiet: false,
       exclude: [],
       rules: nil,
-      disable: []
+      disable: [],
+      severity: nil,
+      fail_level: :warning,
+      format: nil
     }.freeze
 
     attr_reader :options
@@ -88,6 +91,10 @@ module Mdlint
       if parsed[:disable]
         options[:disable] = Array(parsed[:disable]).map(&:to_s)
       end
+
+      options[:severity] = parsed[:severity].to_sym if parsed[:severity]
+      options[:fail_level] = parsed[:fail_level].to_sym if parsed[:fail_level]
+      options[:format] = parsed[:format].to_s if parsed[:format]
 
       if parsed[:exclude]
         options[:exclude] = Array(parsed[:exclude])
