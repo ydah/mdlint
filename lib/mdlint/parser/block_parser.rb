@@ -8,21 +8,21 @@ module Mdlint
     class BlockParser
       ATX_HEADING_REGEXP = /\A {0,3}(\#{1,6})(?:\s+(.*))?$/
       SETEXT_HEADING_REGEXP = /\A {0,3}(=+|-+)\s*\z/
-      FENCE_OPEN_REGEXP = /\A {0,3}(`{3,}|~{3,})([^`]*)\z/
+      FENCE_OPEN_REGEXP = /\A {0,3}(`{3,}|~{3,})(.*)\z/
       BLOCKQUOTE_REGEXP = /\A {0,3}> ?/
       HR_REGEXP = /\A {0,3}([-*_])(?:\s*\1){2,}\s*\z/
       BULLET_LIST_REGEXP = /\A( {0,3})([-*+])\s+/
       ORDERED_LIST_REGEXP = /\A( {0,3})(\d{1,9})([.)])\s+/
       CODE_BLOCK_INDENT = /\A {4}/
-      HTML_BLOCK_START_1 = /\A {0,3}<(script|pre|style|textarea)[\s>]/i
+      HTML_BLOCK_START_1 = /\A {0,3}<(script|pre|style|textarea)(?:[\s>]|\z)/i
       HTML_BLOCK_START_2 = /\A {0,3}<!--/
       HTML_BLOCK_START_3 = /\A {0,3}<\?/
       HTML_BLOCK_START_4 = /\A {0,3}<![A-Z]/
       HTML_BLOCK_START_5 = /\A {0,3}<!\[CDATA\[/
       HTML_BLOCK_START_6 = /\A {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
-      HTML_BLOCK_START_7 = /\A {0,3}<\/?(?:a\b|[A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?)(?:\s[^>]*|\/?>)/
+      HTML_BLOCK_START_7 = /\A {0,3}<\/?[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?(?:\s[^>]*>|\/?>)\s*\z/
       # Reference definition: [label]: url "title"
-      REFERENCE_DEF_REGEXP = /\A {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*$/
+      REFERENCE_DEF_REGEXP = /\A {0,3}\[((?:\\.|[^\]])+)\]:/
       FOOTNOTE_DEF_REGEXP = /\A {0,3}\[\^([^\]]+)\]:\s*(.*?)\s*$/
       MATH_BLOCK_REGEXP = /\A {0,3}\$\$\s*$/
 
@@ -187,6 +187,9 @@ module Mdlint
         closing_line += state.line + 1
         start_line = state.line
         raw_lines = state.raw_lines[start_line..closing_line]
+        payload = state.lines[(start_line + 1)...closing_line].to_a
+        return false unless front_matter_payload?(format, payload)
+
         content = raw_lines.join("\n")
         content += "\n" if closing_line < state.lines.length - 1 || state.src.end_with?("\n")
 
@@ -310,25 +313,29 @@ module Mdlint
 
       def parse_fence(state)
         line = state.current_line
-        match = line.match(FENCE_OPEN_REGEXP)
+        match = fence_match(line)
         return false unless match
 
         marker = match[1]
         info = match[2].strip
+
         fence_char = marker[0]
         fence_length = marker.length
+        opening_indent = line[/\A */].length
         start_line = state.line
         state.next_line
 
         content_lines = []
         until state.eof?
           current = state.current_line
+          break if state.line == state.lines.length - 1 && current.empty?
+
           close_match = current.match(/\A {0,3}#{fence_char}{#{fence_length},}\s*\z/)
           if close_match
             state.next_line
             break
           end
-          content_lines << state.raw_line
+          content_lines << strip_fence_indent(state.raw_line, opening_indent)
           state.next_line
         end
 
@@ -536,7 +543,7 @@ module Mdlint
             end
           end
 
-          loose_content = collect_loose_item_content(state, pattern, base_indent)
+          loose_content = collect_loose_item_content(state, pattern, base_indent, nested_lines, match[0].length)
 
           paragraph_content = item_content_lines.join("\n").strip
           if paragraph_content.match?(HR_REGEXP)
@@ -640,7 +647,7 @@ module Mdlint
             end
           end
 
-          loose_content = collect_loose_item_content(state, pattern, base_indent)
+          loose_content = collect_loose_item_content(state, pattern, base_indent, nested_lines, match[0].length)
 
           paragraph_content = item_content_lines.join("\n").strip
           if paragraph_content.match?(HR_REGEXP)
@@ -703,7 +710,7 @@ module Mdlint
         end
       end
 
-      def collect_loose_item_content(state, pattern, base_indent)
+      def collect_loose_item_content(state, pattern, base_indent, nested_lines = nil, content_indent = base_indent + 2)
         return unless state.blank_line?
 
         state.skip_blank_lines
@@ -714,12 +721,31 @@ module Mdlint
           mark_current_list_loose(state)
           return
         end
-        return unless state.current_line.match?(/\A\s+/)
+        return unless state.current_line.match?(/\A {#{content_indent},}/)
 
         mark_current_list_loose(state)
+        if state.current_line.match?(/\A {#{base_indent + 4},}/) && nested_lines
+          while !state.eof?
+            if state.blank_line?
+              index = state.line
+              index += 1 while index < state.lines.length && state.blank_line?(index)
+              break if index >= state.lines.length || !state.lines[index].match?(/\A\s+/)
+
+              nested_lines << ""
+              state.next_line
+            elsif state.current_line.match?(/\A\s+/)
+              nested_lines << dedent_list_line(state.current_line, base_indent)
+              state.next_line
+            else
+              break
+            end
+          end
+          return nil
+        end
+
         content_lines = []
         while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
-          break unless state.current_line.match?(/\A\s+/)
+          break unless state.current_line.match?(/\A {#{content_indent},}/)
 
           content_lines << state.raw_line.sub(/\A\s+/, "")
           state.next_line
@@ -749,13 +775,7 @@ module Mdlint
       def parse_html_block(state)
         line = state.current_line
 
-        return false unless line.match?(HTML_BLOCK_START_1) ||
-                            line.match?(HTML_BLOCK_START_2) ||
-                            line.match?(HTML_BLOCK_START_3) ||
-                            line.match?(HTML_BLOCK_START_4) ||
-                            line.match?(HTML_BLOCK_START_5) ||
-                            line.match?(HTML_BLOCK_START_6) ||
-                            line.match?(HTML_BLOCK_START_7)
+        return false unless html_block_start?(line)
 
         start_line = state.line
         content_lines = []
@@ -767,10 +787,32 @@ module Mdlint
             state.next_line
             break if current_line.include?("-->")
           end
+        elsif line.match?(HTML_BLOCK_START_1)
+          tag = line[/\A {0,3}<([A-Za-z][A-Za-z0-9]*)/i, 1]
+          until state.eof?
+            current_line = state.current_line
+            content_lines << state.raw_line
+            state.next_line
+            break if current_line.match?(%r{</#{Regexp.escape(tag)}\s*>}i)
+          end
+        elsif line.match?(HTML_BLOCK_START_3)
+          until state.eof?
+            current_line = state.current_line
+            content_lines << state.raw_line
+            state.next_line
+            break if current_line.include?("?>")
+          end
+        elsif line.match?(HTML_BLOCK_START_5)
+          until state.eof?
+            current_line = state.current_line
+            content_lines << state.raw_line
+            state.next_line
+            break if current_line.include?("]]>")
+          end
         else
           until state.eof?
             current_line = state.current_line
-            content_lines << current_line
+            content_lines << state.raw_line
             state.next_line
             break if line.match?(HTML_BLOCK_START_7) && current_line.match?(%r{</[A-Z][A-Za-z0-9]*(?:\.[A-Za-z0-9_-]+)?>})
             break if state.blank_line?
@@ -786,16 +828,29 @@ module Mdlint
         true
       end
 
+      def html_block_start?(line)
+        [HTML_BLOCK_START_1, HTML_BLOCK_START_2, HTML_BLOCK_START_3, HTML_BLOCK_START_4,
+         HTML_BLOCK_START_5, HTML_BLOCK_START_6, HTML_BLOCK_START_7].any? { |pattern| line.match?(pattern) }
+      end
+
       def parse_code_block(state)
         return false unless state.current_line.match?(CODE_BLOCK_INDENT)
 
         start_line = state.line
         content_lines = []
 
-        while !state.eof? && state.current_line.match?(CODE_BLOCK_INDENT)
-          content_lines << strip_code_indent(state.raw_line, state.current_line)
-          state.next_line
+        while !state.eof?
+          if state.current_line.match?(CODE_BLOCK_INDENT)
+            content_lines << strip_code_indent(state.raw_line, state.current_line)
+            state.next_line
+          elsif state.blank_line? && state.line < state.lines.length - 1
+            content_lines << ""
+            state.next_line
+          else
+            break
+          end
         end
+        content_lines.pop while content_lines.last == ""
 
         state.tokens << Token.new(
           type: :code_block,
@@ -808,13 +863,33 @@ module Mdlint
       end
 
       def parse_reference_definition(state)
-        line = state.current_line
+        line = state.raw_line
         match = line.match(REFERENCE_DEF_REGEXP)
         return false unless match
 
-        label = match[1].downcase
-        url = match[2]
-        title = match[3] || match[4] || match[5]
+        label = normalize_reference_label(match[1])
+        tail = line[match[0].length..].to_s.strip
+        parsed = parse_reference_tail(tail)
+        consumed = 1
+
+        if parsed.nil? && tail.empty?
+          url_line = state.peek_line
+          return false if url_line.nil? || state.blank_line?(state.line + 1)
+
+          parsed = parse_reference_tail(url_line.to_s.strip)
+          consumed += 1 if parsed
+        end
+        if parsed && parsed[1].nil?
+          title_line = state.peek_line(consumed)
+          if title_line && !state.blank_line?(state.line + consumed) && title_line.match?(/\A\s+/)
+            title = parse_reference_title(title_line.to_s.strip)
+            parsed = [parsed[0], title] if title
+            consumed += 1 if title
+          end
+        end
+        return false unless parsed
+
+        url, title = parsed
 
         state.tokens << Token.new(
           type: :reference_definition,
@@ -826,8 +901,79 @@ module Mdlint
           map: [state.line, state.line + 1]
         )
 
-        state.next_line
+        state.line += consumed
         true
+      end
+
+      def reference_definition_candidate?(state)
+        match = state.raw_line.match(REFERENCE_DEF_REGEXP)
+        return false unless match
+
+        tail = state.raw_line[match[0].length..].to_s.strip
+        return true if parse_reference_tail(tail)
+        return false unless tail.empty?
+
+        next_line = state.peek_line
+        next_line && !state.blank_line?(state.line + 1) && parse_reference_tail(next_line.to_s.strip)
+      end
+
+      def normalize_reference_label(label)
+        label.to_s.gsub(/\\([!"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1').gsub(/\s+/, " ").strip.downcase
+      end
+
+      def parse_reference_tail(tail)
+        value = tail.to_s
+        return nil if value.empty?
+
+        if value.start_with?("<")
+          closing = value.index(">", 1)
+          return nil unless closing
+
+          url = value[1...closing]
+          raw_remainder = value[(closing + 1)..].to_s
+          return nil unless raw_remainder.empty? || raw_remainder.match?(/\A\s/)
+
+          remainder = raw_remainder.strip
+        else
+          index = 0
+          depth = 0
+          while index < value.length
+            character = value[index]
+            if character == "\\"
+              index += 2
+              next
+            end
+            if character == "("
+              depth += 1
+            elsif character == ")"
+              break if depth.zero?
+
+              depth -= 1
+            elsif character.match?( /\s/ ) && depth.zero?
+              break
+            end
+            index += 1
+          end
+          return nil if index.zero?
+
+          url = value[0...index]
+          remainder = value[index..].to_s.strip
+        end
+
+        return [url, nil] if remainder.empty?
+
+        title = parse_reference_title(remainder)
+        title ? [url, title] : nil
+      end
+
+      def parse_reference_title(value)
+        return nil unless value.length >= 2
+
+        opener = value[0]
+        closer = { '"' => '"', "'" => "'", "(" => ")" }[opener]
+        return nil unless closer && value.end_with?(closer)
+
+        value[1...-1]
       end
 
       def parse_footnote_definition(state)
@@ -863,19 +1009,24 @@ module Mdlint
           line = state.current_line
           break if line.match?(ATX_HEADING_REGEXP) ||
                    line.match?(MATH_BLOCK_REGEXP) ||
-                   line.match?(FENCE_OPEN_REGEXP) ||
+                   fence_match(line) ||
                    line.match?(HR_REGEXP) ||
                    line.match?(BLOCKQUOTE_REGEXP) ||
                    line.match?(BULLET_LIST_REGEXP) ||
                    line.match?(ORDERED_LIST_REGEXP) ||
-                   line.match?(REFERENCE_DEF_REGEXP) ||
+                   (html_block_start?(line) && !line.match?(HTML_BLOCK_START_7)) ||
+                   (reference_definition_candidate?(state) && content_lines.empty?) ||
                    line.match?(FOOTNOTE_DEF_REGEXP)
 
           if state.peek_line&.match?(SETEXT_HEADING_REGEXP)
             break if content_lines.any?
           end
 
-          content_lines << state.raw_line
+          content_lines << if content_lines.empty?
+                             state.raw_line.sub(/\A {0,3}/, "")
+                           else
+                             state.raw_line.sub(/\A\s+/, "")
+                           end
           state.next_line
         end
 
@@ -891,7 +1042,7 @@ module Mdlint
 
         state.tokens << Token.new(
           type: :inline,
-          content: content_lines.join("\n").strip,
+          content: content_lines.join("\n").strip.gsub(/(?<! ) \n/, "\n"),
           level: state.level + 1,
           map: [start_line, state.line]
         )
@@ -912,7 +1063,7 @@ module Mdlint
       end
 
       def block_boundary?(line)
-        line.match?(ATX_HEADING_REGEXP) || line.match?(FENCE_OPEN_REGEXP) ||
+        line.match?(ATX_HEADING_REGEXP) || fence_match(line) ||
           line.match?(HR_REGEXP) || line.match?(BLOCKQUOTE_REGEXP) ||
           line.match?(BULLET_LIST_REGEXP) || line.match?(ORDERED_LIST_REGEXP) ||
           line.match?(REFERENCE_DEF_REGEXP) || line.match?(FOOTNOTE_DEF_REGEXP)
@@ -947,6 +1098,35 @@ module Mdlint
           index += 1
         end
         raw_line[index..] || ""
+      end
+
+      def fence_match(line)
+        match = line.to_s.match(FENCE_OPEN_REGEXP)
+        return unless match
+        return if match[1].start_with?("`") && match[2].include?("`")
+
+        match
+      end
+
+      def front_matter_payload?(format, lines)
+        return false if lines.empty? || lines.all? { |line| line.strip.empty? }
+
+        case format
+        when :yaml
+          lines.any? { |line| line.match?(/\A\s*[^#\s][^:]*:/) }
+        when :toml
+          lines.any? { |line| line.match?(/\A\s*[^#\s=]+\s*=/) }
+        when :json
+          lines.join.match?(/[{}\[\]]|\A\s*\"[^\"]+\"\s*:/)
+        else
+          false
+        end
+      end
+
+      def strip_fence_indent(raw_line, indent)
+        return raw_line if indent.zero?
+
+        raw_line.sub(/\A {0,#{indent}}/, "")
       end
 
       def task_attributes(content)

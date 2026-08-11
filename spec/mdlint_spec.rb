@@ -144,6 +144,14 @@ RSpec.describe Mdlint do
       expect(result).to include('<a href="https://example.com">link</a>')
     end
 
+    it "renders balanced destinations, URI autolinks, and image alt text" do
+      result = Mdlint.html("[link](foo(and(bar))) <irc://foo.bar:2233/baz>\n\n![foo *bar*](image.png)\n")
+
+      expect(result).to include('<a href="foo(and(bar))">link</a>')
+      expect(result).to include('<a href="irc://foo.bar:2233/baz">irc://foo.bar:2233/baz</a>')
+      expect(result).to include('<img src="image.png" alt="foo bar" />')
+    end
+
     it "renders GFM task lists and tables" do
       result = Mdlint.html("| Name | State |\n|---|---|\n| A | ~~done~~ |\n\n- [x] Ready\n", dialect: :gfm)
 

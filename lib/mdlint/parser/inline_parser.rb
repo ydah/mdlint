@@ -8,9 +8,9 @@ module Mdlint
       ESCAPE_CHARS = '!"#$%&\'()*+,\\-./:;<=>?@[\\\\\\]^_`{|}~'
       ESCAPE_REGEXP = /\\([#{Regexp.escape(ESCAPE_CHARS)}])/
       BACKTICK_REGEXP = /(`+)(.+?)\1(?!`)/
-      AUTOLINK_REGEXP = %r{<((?:https?|ftp)://[^>]+)>}
+      AUTOLINK_REGEXP = %r{<(([A-Za-z][A-Za-z0-9+.-]{1,31}):[^\s<>]+)>}
       EMAIL_AUTOLINK_REGEXP = /<([a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/
-      HTML_INLINE_REGEXP = %r{</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>}
+      HTML_INLINE_REGEXP = %r{</?[a-zA-Z][a-zA-Z0-9:-]*(?:\s+[^>]*)?/?>}
 
       def initialize(options = {})
         @options = options
@@ -51,20 +51,20 @@ module Mdlint
             tokens << Token.new(type: :text, content: match[1])
             pos += match[0].length
           elsif remaining.start_with?("![")
-            if (match = remaining.match(/\A!\[([^\]]*)\]\(([^)\s]*)(?:\s+"([^"]*)")?\)/))
+            if (match = inline_link_match(remaining, image: true))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               tokens << Token.new(
                 type: :image,
                 tag: "img",
                 attrs: {
-                  src: match[2],
-                  alt: match[1],
-                  title: match[3]
+                  src: match[:url],
+                  alt: match[:text],
+                  title: match[:title]
                 }.compact,
-                content: match[1]
+                content: match[:text]
               )
-              pos += match[0].length
+              pos += match[:length]
             elsif (match = remaining.match(/\A!\[([^\]]*)\]\[([^\]]*)\]/))
               flush_text(text_buffer, tokens)
               text_buffer = ""
@@ -72,7 +72,7 @@ module Mdlint
               tokens << Token.new(
                 type: :image,
                 tag: "img",
-                attrs: { reference_label: label.downcase, alt: match[1] },
+                attrs: { reference_label: label.downcase, reference_kind: :full, alt: match[1] },
                 content: match[1],
                 markup: "reference"
               )
@@ -83,7 +83,7 @@ module Mdlint
               tokens << Token.new(
                 type: :image,
                 tag: "img",
-                attrs: { reference_label: match[1].downcase, alt: match[1] },
+                attrs: { reference_label: match[1].downcase, reference_kind: :shortcut, alt: match[1] },
                 content: match[1],
                 markup: "reference"
               )
@@ -94,7 +94,7 @@ module Mdlint
             end
           elsif remaining.start_with?("[")
             # Inline link: [text](url "title")
-            if (match = remaining.match(/\A\[([^\]]*)\]\(([^)\s]*)(?:\s+"([^"]*)")?\)/))
+            if (match = inline_link_match(remaining))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               tokens << Token.new(
@@ -102,17 +102,17 @@ module Mdlint
                 tag: "a",
                 nesting: 1,
                 attrs: {
-                  href: match[2],
-                  title: match[3]
+                  href: match[:url],
+                  title: match[:title]
                 }.compact
               )
-              parse_inline(match[1], tokens)
+              parse_inline(match[:text], tokens)
               tokens << Token.new(
                 type: :link_close,
                 tag: "a",
                 nesting: -1
               )
-              pos += match[0].length
+              pos += match[:length]
             # Full reference link: [text][label]
             elsif (match = remaining.match(/\A\[([^\]]*)\]\[([^\]]*)\]/))
               flush_text(text_buffer, tokens)
@@ -122,7 +122,7 @@ module Mdlint
                 type: :link_open,
                 tag: "a",
                 nesting: 1,
-                attrs: { reference_label: label.downcase },
+                attrs: { reference_label: label.downcase, reference_kind: :full },
                 markup: "reference"
               )
               parse_inline(match[1], tokens)
@@ -134,7 +134,7 @@ module Mdlint
               )
               pos += match[0].length
             # Shortcut reference link: [label]
-            elsif (match = remaining.match(/\A\[([^\]]+)\](?!\(|\[)/))
+            elsif (match = remaining.match(/\A\[([^\[\]]+)\](?!\(|\[)/))
               flush_text(text_buffer, tokens)
               text_buffer = ""
               label = match[1]
@@ -142,7 +142,7 @@ module Mdlint
                 type: :link_open,
                 tag: "a",
                 nesting: 1,
-                attrs: { reference_label: label.downcase },
+                attrs: { reference_label: label.downcase, reference_kind: :shortcut },
                 markup: "reference"
               )
               tokens << Token.new(type: :text, content: label)
@@ -158,18 +158,21 @@ module Mdlint
               pos += 1
             end
           elsif remaining.start_with?("`")
-            if (match = remaining.match(/\A(`+)(.+?)\1(?!`)/m))
+            if (match = code_span_match(remaining))
               flush_text(text_buffer, tokens)
               text_buffer = ""
-              code_content = match[2]
-              code_content = code_content.strip if code_content.start_with?(" ") && code_content.end_with?(" ")
+              code_content = match[:content]
+              code_content = code_content.gsub(/\r?\n/, " ")
+              if code_content.start_with?(" ") && code_content.end_with?(" ") && !code_content.match?(/\A +\z/)
+                code_content = code_content[1...-1]
+              end
               tokens << Token.new(
                 type: :code_inline,
                 tag: "code",
                 content: code_content,
-                markup: match[1]
+                markup: match[:delimiter]
               )
-              pos += match[0].length
+              pos += match[:length]
             else
               text_buffer += remaining[0]
               pos += 1
@@ -295,11 +298,11 @@ module Mdlint
             tokens << Token.new(type: :text, content: href)
             tokens << Token.new(type: :link_close, tag: "a", nesting: -1, markup: "autolink")
             pos += consumed
-          elsif remaining.start_with?("  \n")
+          elsif (match = remaining.match(/\A {2,}\n/))
             flush_text(text_buffer, tokens)
             text_buffer = ""
             tokens << Token.new(type: :hardbreak, tag: "br")
-            pos += 3
+            pos += match[0].length
           elsif remaining[0] == "\n"
             flush_text(text_buffer, tokens)
             text_buffer = ""
@@ -315,6 +318,123 @@ module Mdlint
       end
 
       private
+
+      def inline_link_match(value, image: false)
+        prefix = image ? "![" : "["
+        return unless value.start_with?(prefix)
+
+        depth = 1
+        index = prefix.length
+        while index < value.length
+          if value[index] == "\\"
+            index += 2
+            next
+          end
+          if value[index] == "`" && (code = code_span_match(value[index..]))
+            index += code[:length]
+            next
+          end
+          if value[index] == "["
+            depth += 1
+          elsif value[index] == "]"
+            depth -= 1
+            break if depth.zero?
+          end
+          index += 1
+        end
+        return unless depth.zero? && value[index + 1] == "("
+
+        destination = parse_link_destination(value[(index + 2)..])
+        return unless destination
+
+        {
+          text: value[prefix.length...index],
+          url: destination[:url],
+          title: destination[:title],
+          length: index + 2 + destination[:length]
+        }
+      end
+
+      def parse_link_destination(value)
+        index = 0
+        index += 1 while index < value.length && value[index].match?(/\s/)
+        return { url: "", title: nil, length: index + 1 } if value[index] == ")"
+
+        if value[index] == "<"
+          closing = find_unescaped(value, ">", index + 1)
+          return unless closing
+
+          url = value[(index + 1)...closing]
+          return if url.match?(/[\r\n]/)
+          index = closing + 1
+        else
+          start = index
+          depth = 0
+          while index < value.length
+            character = value[index]
+            if character == "\\"
+              index += 2
+              next
+            end
+            if character == "("
+              depth += 1
+            elsif character == ")"
+              break if depth.zero?
+
+              depth -= 1
+            elsif character.match?(/\s/) && depth.zero?
+              break
+            end
+            index += 1
+          end
+          return if index == start
+
+          url = value[start...index]
+        end
+
+        whitespace = index
+        index += 1 while index < value.length && value[index].match?(/\s/)
+        return { url: url, title: nil, length: index + 1 } if value[index] == ")"
+        return unless index > whitespace
+
+        title_start = value[index]
+        title_end = { '"' => '"', "'" => "'", "(" => ")" }[title_start]
+        return unless title_end
+
+        closing = find_unescaped(value, title_end, index + 1)
+        return unless closing
+        remainder = closing + 1
+        remainder += 1 while remainder < value.length && value[remainder].match?(/\s/)
+        return unless value[remainder] == ")"
+
+        { url: url, title: value[(index + 1)...closing], length: remainder + 1 }
+      end
+
+      def find_unescaped(value, character, start)
+        index = start
+        while index < value.length
+          return index if value[index] == character && (index.zero? || value[index - 1] != "\\")
+
+          index += 1
+        end
+        nil
+      end
+
+      def code_span_match(value)
+        opening = value[/\A`+/]
+        return unless opening
+
+        delimiter = opening
+        search = delimiter.length
+        while (closing = value.index(delimiter, search))
+          run = value[closing..].match(/\A`+/)[0].length
+          if run == delimiter.length
+            return { delimiter: delimiter, content: value[delimiter.length...closing], length: closing + delimiter.length }
+          end
+          search = closing + run
+        end
+        nil
+      end
 
       def flush_text(buffer, tokens)
         return if buffer.empty?

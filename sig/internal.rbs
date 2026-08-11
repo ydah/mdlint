@@ -89,9 +89,11 @@ module Mdlint
       def render_footnote_content: (untyped content) -> String
       def render_directive: (untyped token) -> String
       def render_cell: (untyped value) -> String
+      def image_alt: (untyped value) -> String
       def fenced_code: (untyped token) -> String
       def task_checkbox: (untyped checked) -> String
       def find_close: (untyped tokens, untyped index, untyped close_type) -> untyped
+      def reference_literal: (untyped token, untyped inner_tokens) -> String
       def escape: (untyped value) -> String
       def escape_attribute: (untyped value) -> String
       def escape_url_attribute: (untyped value, ?unescape: bool) -> String
@@ -137,6 +139,7 @@ module Mdlint
       def parse_atx_heading: (untyped state) -> untyped
       def parse_setext_heading: (untyped state) -> untyped
       def parse_fence: (untyped state) -> untyped
+      def fence_match: (untyped line) -> untyped
       def parse_hr: (untyped state) -> untyped
       def parse_blockquote: (untyped state) -> untyped
       def parse_bullet_list: (untyped state) -> untyped
@@ -146,15 +149,22 @@ module Mdlint
       def dedent_list_line: (untyped line, untyped base_indent) -> String
       def append_nested_tokens: (untyped state, untyped nested_lines, untyped start_line) -> untyped
       def block_boundary?: (untyped line) -> bool
-      def collect_loose_item_content: (untyped state, untyped pattern, untyped base_indent) -> untyped
+      def collect_loose_item_content: (untyped state, untyped pattern, untyped base_indent, ?untyped nested_lines, ?untyped content_indent) -> untyped
       def append_loose_paragraph: (untyped state, untyped content, untyped start_line) -> untyped
       def mark_current_list_loose: (untyped state) -> untyped
       def parse_html_block: (untyped state) -> untyped
+      def html_block_start?: (untyped line) -> bool
       def parse_code_block: (untyped state) -> untyped
       def parse_reference_definition: (untyped state) -> untyped
+      def reference_definition_candidate?: (untyped state) -> bool
+      def normalize_reference_label: (untyped label) -> String
+      def parse_reference_tail: (untyped tail) -> untyped
+      def parse_reference_title: (untyped value) -> untyped
       def parse_footnote_definition: (untyped state) -> untyped
       def parse_paragraph: (untyped state) -> untyped
       def strip_code_indent: (untyped raw_line, untyped expanded_line) -> String
+      def front_matter_payload?: (untyped format, untyped lines) -> bool
+      def strip_fence_indent: (untyped raw_line, untyped indent) -> String
       def task_attributes: (untyped content) -> untyped
       def strip_task_marker: (untyped content) -> untyped
       def alert_attributes: (untyped content_lines) -> untyped
@@ -164,6 +174,10 @@ module Mdlint
       def initialize: (?untyped options) -> void
       def parse: (untyped content) -> untyped
       def parse_inline: (untyped content, untyped tokens) -> untyped
+      def inline_link_match: (untyped value, ?image: bool) -> untyped
+      def parse_link_destination: (untyped value) -> untyped
+      def find_unescaped: (untyped value, untyped character, untyped start) -> untyped
+      def code_span_match: (untyped value) -> untyped
       def flush_text: (untyped buffer, untyped tokens) -> untyped
     end
   end

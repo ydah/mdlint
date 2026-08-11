@@ -10,7 +10,7 @@ module Mdlint
         "amp" => "&", "apos" => "'", "gt" => ">", "lt" => "<", "quot" => '"',
         "nbsp" => "\u00a0", "copy" => "©", "reg" => "®", "trade" => "™",
         "AElig" => "Æ", "aelig" => "æ", "Dcaron" => "Ď", "dcaron" => "ď",
-        "ouml" => "ö", "Ouml" => "Ö", "uuml" => "ü", "Uuml" => "Ü",
+        "ouml" => "ö", "Ouml" => "Ö", "auml" => "ä", "Auml" => "Ä", "uuml" => "ü", "Uuml" => "Ü",
         "frac12" => "½", "frac14" => "¼", "frac34" => "¾", "HilbertSpace" => "ℋ",
         "DifferentialD" => "ⅆ", "ClockwiseContourIntegral" => "∲", "ngE" => "≧̸"
       }.freeze
@@ -52,7 +52,9 @@ module Mdlint
           when :bullet_list_open, :ordered_list_open
             list, index = render_sequence(tokens, index + 1, token.type == :bullet_list_open ? :bullet_list_close : :ordered_list_close)
             tag = token.type == :bullet_list_open ? "ul" : "ol"
-            output << "<#{tag}>\n#{list}</#{tag}>\n"
+            start = token.type == :ordered_list_open ? token.attrs[:start].to_i : 1
+            start_attribute = token.type == :ordered_list_open && start != 1 ? " start=\"#{start}\"" : ""
+            output << "<#{tag}#{start_attribute}>\n#{list}</#{tag}>\n"
           when :list_item_open
             item, index = render_sequence(tokens, index + 1, :list_item_close)
             task = token.attrs[:task] ? task_checkbox(token.attrs[:checked]) : ""
@@ -133,7 +135,7 @@ module Mdlint
             output << "<#{tag}>#{render_inline_tokens(tokens[(index + 1)...close_index])}</#{tag}>"
             index = close_index
           when :code_inline
-            output << "<code>#{escape_raw(token.content.strip)}</code>"
+            output << "<code>#{escape_raw(token.content)}</code>"
           when :math_inline
             output << "<span class=\"math-inline\">#{escape(token.content)}</span>"
           when :footnote_ref
@@ -144,6 +146,12 @@ module Mdlint
           when :link_open
             close_index = find_close(tokens, index, :link_close)
             reference = @reference_definitions[token.attrs[:reference_label]]
+            unless reference || token.markup != "reference"
+              literal = reference_literal(token, tokens[(index + 1)...close_index])
+              output << escape(literal)
+              index = close_index
+              next
+            end
             href = token.attrs[:href] || reference&.fetch(:url, "") || ""
             title = token.attrs[:title] || reference&.fetch(:title, nil)
             title = title.to_s.gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1') if title
@@ -155,14 +163,16 @@ module Mdlint
             reference = @reference_definitions[token.attrs[:reference_label]]
             source = token.attrs[:src] || reference&.fetch(:url, nil)
             unless source
-              output << escape("![#{token.attrs[:alt] || token.content}]")
+              label = token.attrs[:reference_label]
+              suffix = token.attrs[:reference_kind] == :full ? "[#{label}]" : ""
+              output << escape("![#{token.attrs[:alt] || token.content}]#{suffix}")
               index += 1
               next
             end
-            attrs = "src=\"#{escape_url_attribute(source, unescape: true)}\" alt=\"#{escape_attribute(token.attrs[:alt] || token.content)}\""
+            attrs = "src=\"#{escape_url_attribute(source, unescape: true)}\" alt=\"#{escape_attribute(image_alt(token.attrs[:alt] || token.content))}\""
             title = token.attrs[:title] || reference&.fetch(:title, nil)
             attrs += " title=\"#{escape_attribute(title)}\"" if title
-            output << "<img #{attrs}>"
+            output << "<img #{attrs} />"
           when :softbreak
             output << "\n"
           when :hardbreak
@@ -190,6 +200,7 @@ module Mdlint
       def collapse_tight_item(item)
         match = item.match(/\A<p>(.*)<\/p>\n\z/m)
         return match[1] if match
+        return "\n#{item}" if item.start_with?("<hr />\n")
 
         item.sub(/\A<p>(.*)<\/p>\n(?=<(?:ul|ol)>)/m, "\\1\n")
       end
@@ -250,6 +261,18 @@ module Mdlint
         render_inline_tokens(inline_tokens)
       end
 
+      def image_alt(value)
+        tokens = Parser::InlineParser.new(@options).parse(value.to_s)
+        tokens.filter_map do |token|
+          case token.type
+          when :text, :code_inline, :math_inline
+            token.content
+          when :image
+            token.attrs[:alt] || token.content
+          end
+        end.join
+      end
+
       def fenced_code(token)
         language = token.info.to_s.split.first
         language = decode_entities(language.to_s).gsub(/\\([!\"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~])/, '\\1')
@@ -264,6 +287,15 @@ module Mdlint
 
       def find_close(tokens, index, close_type)
         tokens[(index + 1)..]&.index { |token| token.type == close_type }&.+(index + 1) || tokens.length
+      end
+
+      def reference_literal(token, inner_tokens)
+        inner = inner_tokens.to_a.map { |inner_token| inner_token.content || "" }.join
+        if token.attrs[:reference_kind] == :full
+          "[#{inner}][#{token.attrs[:reference_label]}]"
+        else
+          "[#{inner}]"
+        end
       end
 
       def escape(value)
@@ -294,10 +326,15 @@ module Mdlint
                       end
           if codepoint
             begin
-              invalid = codepoint.zero? || codepoint > 0x10ffff || (0xd800..0xdfff).cover?(codepoint)
-              invalid ? "\uFFFD" : [codepoint].pack("U")
+              if codepoint.zero?
+                "\uFFFD"
+              elsif codepoint > 0x10ffff || (0xd800..0xdfff).cover?(codepoint)
+                Regexp.last_match(0)
+              else
+                [codepoint].pack("U")
+              end
             rescue RangeError
-              "\uFFFD"
+              Regexp.last_match(0)
             end
           else
             NAMED_ENTITIES.fetch(Regexp.last_match(3), Regexp.last_match(0))
