@@ -9,7 +9,7 @@ require_relative "cli/output_formatter"
 module Mdlint
   class CLI
     FAIL_LEVELS = { info: 0, warning: 1, error: 2 }.freeze
-    COMMANDS = %w[format lint fix].freeze
+    COMMANDS = %w[format lint fix lsp].freeze
 
     def initialize(argv)
       @argv = argv.dup
@@ -23,6 +23,8 @@ module Mdlint
       load_plugins
       return show_rule_list if @options[:list_rules]
       return show_rule_explanation(@options[:explain]) if @options[:explain]
+
+      return Mdlint::Lsp::Server.new.run if @command == :lsp
 
       @command == :format ? process_format : process_lint
     end
@@ -47,7 +49,7 @@ module Mdlint
       parser = OptionParser.new do |opts|
         opts.banner = "Usage: mdlint [command] [options] [paths...]"
         opts.separator ""
-        opts.separator "Commands: format (default), lint, fix"
+        opts.separator "Commands: format (default), lint, fix, lsp"
         opts.separator ""
         opts.separator "Options:"
 
@@ -76,6 +78,7 @@ module Mdlint
         opts.on("--stdin-filename NAME", "Filename to use for stdin diagnostics") { |name| @cli_options[:stdin_filename] = name }
         opts.on("--dialect DIALECT", "Markdown dialect: commonmark or gfm") { |dialect| @cli_options[:dialect] = dialect.to_sym }
         opts.on("--check-links", "Check relative link and image targets") { @cli_options[:check_links] = true }
+        opts.on("--lsp", "Run the Language Server Protocol server") { @command = :lsp }
         opts.on("--list-rules", "List available lint rules") { @cli_options[:list_rules] = true }
         opts.on("--explain RULE", "Explain a lint rule") { |rule| @cli_options[:explain] = rule }
         opts.on("--require PATH", "Load a custom rule file") { |path| (@cli_options[:require] ||= []) << path }

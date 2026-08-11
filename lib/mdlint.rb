@@ -8,6 +8,7 @@ require_relative "mdlint/parser"
 require_relative "mdlint/renderer"
 require_relative "mdlint/linter"
 require_relative "mdlint/renderer/html_renderer"
+require_relative "mdlint/lsp"
 
 module Mdlint
   class Error < StandardError; end
