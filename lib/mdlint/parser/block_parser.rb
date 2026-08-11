@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "state"
+require_relative "../dialect"
 
 module Mdlint
   module Parser
@@ -24,6 +25,7 @@ module Mdlint
 
       def initialize(options = {})
         @options = options
+        @dialect = Dialect.resolve(options[:dialect])
       end
 
       def parse(src)
@@ -44,16 +46,106 @@ module Mdlint
         parse_front_matter(state) ||
           parse_blank_line(state) ||
           parse_atx_heading(state) ||
+          parse_directive(state) ||
           parse_fence(state) ||
           parse_hr(state) ||
           parse_blockquote(state) ||
           parse_bullet_list(state) ||
           parse_ordered_list(state) ||
+          parse_table(state) ||
           parse_html_block(state) ||
           parse_reference_definition(state) ||
           parse_code_block(state) ||
           parse_setext_heading(state) ||
           parse_paragraph(state)
+      end
+
+      def parse_directive(state)
+        line = state.current_line
+        match = line.match(/\A {0,3}:::([A-Za-z][\w-]*)(?:\s+(.*?))?\s*\z/)
+        return false unless match
+
+        closing_line = state.lines[(state.line + 1)..]&.index { |candidate| candidate.strip == ":::" }
+        return false unless closing_line
+
+        closing_line += state.line + 1
+        start_line = state.line
+        content = state.lines[start_line..closing_line].join("\n")
+        content += "\n" if closing_line < state.lines.length - 1 || state.src.end_with?("\n")
+        state.tokens << Token.new(
+          type: :directive,
+          content: content,
+          meta: { name: match[1], title: match[2] },
+          map: [start_line, closing_line + 1]
+        )
+        state.line = closing_line + 1
+        true
+      end
+
+      def parse_table(state)
+        return false unless @dialect.gfm?
+        return false unless table_delimiter?(state.peek_line)
+        return false unless state.current_line.include?("|")
+
+        start_line = state.line
+        header = split_table_row(state.current_line)
+        alignments = split_table_row(state.peek_line).map { |cell| table_alignment(cell) }
+        rows = [header]
+        state.next_line
+        state.next_line
+
+        while !state.eof? && table_row?(state.current_line)
+          rows << split_table_row(state.current_line)
+          state.next_line
+        end
+
+        state.tokens << Token.new(
+          type: :table,
+          meta: { rows: rows, alignments: alignments },
+          map: [start_line, state.line]
+        )
+        true
+      end
+
+      def table_delimiter?(line)
+        return false unless line
+
+        cells = split_table_row(line)
+        cells.length > 0 && cells.all? { |cell| cell.match?(/\A\s*:?-{3,}:?\s*\z/) }
+      end
+
+      def table_row?(line)
+        line && line.include?("|") && !line.strip.empty?
+      end
+
+      def split_table_row(line)
+        value = line.to_s.strip
+        value = value[1..] if value.start_with?("|")
+        value = value[0...-1] if value.end_with?("|") && !value.end_with?("\\|")
+        cells = []
+        current = +""
+        escaped = false
+        value.each_char do |character|
+          if character == "|" && !escaped
+            cells << current.strip
+            current = +""
+          else
+            current << character
+          end
+          escaped = character == "\\" && !escaped
+          escaped = false if character != "\\"
+        end
+        cells << current.strip
+        cells
+      end
+
+      def table_alignment(cell)
+        value = cell.strip
+        return :center if value.start_with?(":") && value.end_with?(":")
+        return :left if value.start_with?(":")
+        return :right if value.end_with?(":")
+
+        nil
       end
 
       def parse_front_matter(state)
@@ -370,12 +462,15 @@ module Mdlint
             tag: "li",
             nesting: 1,
             level: state.level,
+            attrs: task_attributes(content),
             map: [item_start, nil]
           )
           item_token_index = state.tokens.length - 1
 
           state.level += 1
           state.next_line
+
+          content = strip_task_marker(content)
 
           item_content_lines = [content]
           while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
@@ -442,12 +537,15 @@ module Mdlint
             tag: "li",
             nesting: 1,
             level: state.level,
+            attrs: task_attributes(content),
             map: [item_start, nil]
           )
           item_token_index = state.tokens.length - 1
 
           state.level += 1
           state.next_line
+
+          content = strip_task_marker(content)
 
           item_content_lines = [content]
           while !state.eof? && !state.blank_line? && !state.current_line.match?(pattern)
@@ -628,6 +726,21 @@ module Mdlint
         )
 
         true
+      end
+
+      def task_attributes(content)
+        return {} unless @dialect.gfm?
+
+        match = content.match(/\A\[([ xX])\]\s+/)
+        return {} unless match
+
+        { task: true, checked: match[1].downcase == "x" }
+      end
+
+      def strip_task_marker(content)
+        return content unless @dialect.gfm?
+
+        content.sub(/\A\[[ xX]\]\s+/, "")
       end
     end
   end

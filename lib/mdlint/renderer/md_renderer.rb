@@ -108,6 +108,14 @@ module Mdlint
             output << "\n" unless token.content.end_with?("\n")
             output << "\n"
             i += 1
+          when :directive
+            output << token.content
+            output << "\n" unless token.content.end_with?("\n")
+            output << "\n"
+            i += 1
+          when :table
+            render_table(token, output)
+            i += 1
           when :reference_definition
             # Skip - will be output at the end
             i += 1
@@ -241,6 +249,7 @@ module Mdlint
       end
 
       def render_list_item(tokens, start_index, output, prefix)
+        open_token = tokens[start_index]
         i = start_index + 1
         item_content = []
 
@@ -265,8 +274,34 @@ module Mdlint
         end
 
         content = item_content.join("\n").strip
-        output << "#{prefix}#{content}\n"
+        task_prefix = if open_token.attrs[:task]
+                        checked = open_token.attrs[:checked] ? "x" : " "
+                        "[#{checked}] "
+                      else
+                        ""
+                      end
+        output << "#{prefix}#{task_prefix}#{content}\n"
         i + 1
+      end
+
+      def render_table(token, output)
+        rows = token.meta.fetch(:rows, [])
+        return if rows.empty?
+
+        header = rows.first
+        alignments = token.meta.fetch(:alignments, [])
+        output << "| #{header.join(" | ")} |\n"
+        separators = header.each_index.map do |index|
+          case alignments[index]
+          when :center then ":---:"
+          when :left then ":---"
+          when :right then "---:"
+          else "---"
+          end
+        end
+        output << "| #{separators.join(" | ")} |\n"
+        rows.drop(1).each { |row| output << "| #{row.join(" | ")} |\n" }
+        output << "\n"
       end
 
       def collect_paragraph_content(tokens, start_index, content_array)
@@ -381,6 +416,11 @@ module Mdlint
             close_index = find_close_token(tokens, i, :em_close)
             inner = render_inline_tokens(tokens[(i + 1)...close_index])
             output << "#{markup}#{inner}#{markup}"
+            i = close_index
+          when :s_open
+            close_index = find_close_token(tokens, i, :s_close)
+            inner = render_inline_tokens(tokens[(i + 1)...close_index])
+            output << "~~#{inner}~~"
             i = close_index
           when :link_open
             close_index = find_close_token(tokens, i, :link_close)

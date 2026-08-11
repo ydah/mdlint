@@ -162,5 +162,17 @@ RSpec.describe Mdlint::Parser do
       expect(types).to include(:hardbreak, :softbreak)
       expect(text_tokens).to include("*")
     end
+
+    it "parses GFM tables, task lists, and strikethrough" do
+      source = "| Name | State |\n| --- | --- |\n| A | ~~done~~ |\n\n- [x] Ready\n\n~~strike~~\n"
+      tokens = Mdlint.parse(source, dialect: :gfm)
+      table = tokens.find { |token| token.type == :table }
+      task = tokens.find { |token| token.type == :list_item_open }
+      inline = tokens.find { |token| token.type == :inline && token.content.include?("~~") }
+
+      expect(table.meta[:rows].length).to eq(2)
+      expect(task.attrs).to include(task: true, checked: true)
+      expect(inline.children.map(&:type)).to include(:s_open, :s_close)
+    end
   end
 end

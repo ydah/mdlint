@@ -93,6 +93,33 @@ RSpec.describe Mdlint do
       result = Mdlint.format(input, end_of_line: :crlf)
       expect(result).to include("\r\n")
     end
+
+    it "formats GFM tables and task lists" do
+      input = "| Name | State |\n|---|---|\n| A | ~~done~~ |\n\n- [x] Ready\n"
+
+      result = Mdlint.format(input, dialect: :gfm)
+
+      expect(result).to include("| Name | State |\n| --- | --- |\n")
+      expect(result).to include("- [x] Ready\n")
+    end
+  end
+
+  describe ".html" do
+    it "renders headings, links, and inline formatting" do
+      result = Mdlint.html("# Title\n\n**bold** [link](https://example.com)\n")
+
+      expect(result).to include("<h1>Title</h1>")
+      expect(result).to include("<strong>bold</strong>")
+      expect(result).to include('<a href="https://example.com">link</a>')
+    end
+
+    it "renders GFM task lists and tables" do
+      result = Mdlint.html("| Name | State |\n|---|---|\n| A | ~~done~~ |\n\n- [x] Ready\n", dialect: :gfm)
+
+      expect(result).to include("<table>")
+      expect(result).to include("<del>done</del>")
+      expect(result).to include('type="checkbox" disabled checked')
+    end
   end
 
   describe ".parse" do

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../dialect"
+
 module Mdlint
   module Parser
     class InlineParser
@@ -12,6 +14,7 @@ module Mdlint
 
       def initialize(options = {})
         @options = options
+        @dialect = Dialect.resolve(options[:dialect])
       end
 
       def parse(content)
@@ -157,6 +160,18 @@ module Mdlint
               text_buffer += remaining[0]
               pos += 1
             end
+          elsif @dialect.gfm? && remaining.start_with?("~~")
+            if (match = remaining.match(/\A~~(?!\s)(.+?)(?<!\s)~~/m))
+              flush_text(text_buffer, tokens)
+              text_buffer = ""
+              tokens << Token.new(type: :s_open, tag: "del", nesting: 1, markup: "~~")
+              parse_inline(match[1], tokens)
+              tokens << Token.new(type: :s_close, tag: "del", nesting: -1, markup: "~~")
+              pos += match[0].length
+            else
+              text_buffer += remaining[0]
+              pos += 1
+            end
           elsif remaining.start_with?("*")
             if (match = remaining.match(/\A\*(?!\s)(.+?)(?<!\s)\*/m))
               flush_text(text_buffer, tokens)
@@ -227,6 +242,21 @@ module Mdlint
               text_buffer += remaining[0]
               pos += 1
             end
+          elsif @dialect.gfm? && (match = remaining.match(/\A((?:https?|ftp):\/\/[^\s<]+)/))
+            flush_text(text_buffer, tokens)
+            text_buffer = ""
+            href = match[1].sub(/[.,!?;:]\z/, "")
+            consumed = href.length
+            tokens << Token.new(
+              type: :link_open,
+              tag: "a",
+              nesting: 1,
+              attrs: { href: href },
+              markup: "autolink"
+            )
+            tokens << Token.new(type: :text, content: href)
+            tokens << Token.new(type: :link_close, tag: "a", nesting: -1, markup: "autolink")
+            pos += consumed
           elsif remaining.start_with?("  \n")
             flush_text(text_buffer, tokens)
             text_buffer = ""

@@ -11,7 +11,7 @@ module Mdlint
         def check(tokens, _source)
           first_content_token = tokens.find do |t|
             %i[heading_open paragraph_open bullet_list_open ordered_list_open
-               blockquote_open fence code_block hr html_block].include?(t.type)
+               blockquote_open fence code_block hr html_block].include?(t.type) && !directive?(t)
           end
 
           return @violations unless first_content_token
@@ -35,6 +35,12 @@ module Mdlint
 
         def fix(_tokens, source)
           source
+        end
+
+        private
+
+        def directive?(token)
+          token.type == :html_block && token.content.match?(/<!--\s*mdlint-(?:disable|enable)/i)
         end
       end
     end

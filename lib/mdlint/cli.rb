@@ -72,6 +72,7 @@ module Mdlint
         opts.on("--fail-level LEVEL", "Fail at severity: error, warning, or info") { |level| @cli_options[:fail_level] = parse_level(level) }
         opts.on("--format FORMAT", "Lint output: text, json, sarif, github, checkstyle, junit") { |format| @cli_options[:format] = format }
         opts.on("--stdin-filename NAME", "Filename to use for stdin diagnostics") { |name| @cli_options[:stdin_filename] = name }
+        opts.on("--dialect DIALECT", "Markdown dialect: commonmark or gfm") { |dialect| @cli_options[:dialect] = dialect.to_sym }
         opts.on("--list-rules", "List available lint rules") { @cli_options[:list_rules] = true }
         opts.on("--explain RULE", "Explain a lint rule") { |rule| @cli_options[:explain] = rule }
         opts.on("-v", "--version", "Show version") do
@@ -251,7 +252,8 @@ module Mdlint
       {
         wrap: @options[:wrap] || :keep,
         number: @options[:number] || false,
-        end_of_line: @options[:end_of_line] || :lf
+        end_of_line: @options[:end_of_line] || :lf,
+        dialect: @options[:dialect] || :commonmark
       }
     end
 
@@ -259,7 +261,8 @@ module Mdlint
       {
         rules: @options[:rules],
         disable: @options[:disable] || [],
-        severity: @options[:severity]
+        severity: @options[:severity],
+        dialect: @options[:dialect] || :commonmark
       }.compact
     end
 

@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 require_relative "mdlint/version"
+require_relative "mdlint/dialect"
 require_relative "mdlint/token"
 require_relative "mdlint/parser"
 require_relative "mdlint/renderer"
 require_relative "mdlint/linter"
+require_relative "mdlint/renderer/html_renderer"
 
 module Mdlint
   class Error < StandardError; end
@@ -13,6 +15,10 @@ module Mdlint
     def format(src, options = {})
       tokens = Parser.parse(src, options)
       Renderer.render(tokens, options)
+    end
+
+    def html(src, options = {})
+      Renderer.render_html(Parser.parse(src, options), options)
     end
 
     def format_file(path, options = {})
@@ -27,8 +33,8 @@ module Mdlint
       end
     end
 
-    def parse(src)
-      Parser.parse(src)
+    def parse(src, options = {})
+      Parser.parse(src, options)
     end
 
     def fix(src, options = {})

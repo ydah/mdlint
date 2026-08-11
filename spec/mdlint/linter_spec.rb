@@ -85,6 +85,12 @@ RSpec.describe Mdlint::Linter do
 
       expect(Mdlint.lint(source).map(&:rule_id)).to include("MD001")
     end
+
+    it "does not treat a leading directive as document content" do
+      source = "<!-- mdlint-disable MD013 -->\n# Heading\n"
+
+      expect(Mdlint.lint(source).map(&:rule_id)).to be_empty
+    end
   end
 
   describe "rule disabling" do
