@@ -1,5 +1,6 @@
 /.bundle/
 /.idea/
+/.vscode/
 /.yardoc
 /_yardoc/
 /coverage/
@@ -9,3 +10,4 @@
 /tmp/
 .rspec_status
 Gemfile.lock
+*.gem 
