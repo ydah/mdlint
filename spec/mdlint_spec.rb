@@ -159,6 +159,14 @@ RSpec.describe Mdlint do
       expect(result).to include("<p>Be careful.</p>")
     end
 
+    it "renders supported directives as semantic HTML" do
+      result = Mdlint.html(":::message Hello\nContent\n:::\n")
+
+      expect(result).to include('<aside class="markdown-directive markdown-directive-message">')
+      expect(result).to include('<p class="markdown-directive-title">Hello</p>')
+      expect(result).to include("<p>Content</p>")
+    end
+
     it "preserves rendered meaning through formatting" do
       input = "#  Title\n\nParagraph with **bold** and [link](https://example.com).\n"
 

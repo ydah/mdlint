@@ -15,6 +15,12 @@ module Mdlint
           end
         end
 
+        def prose_content(token)
+          token.children.filter_map do |child|
+            child.content if %i[text html_inline softbreak hardbreak].include?(child.type)
+          end.join
+        end
+
         def line_for(token)
           (token.map&.first || 0) + 1
         end
@@ -30,8 +36,9 @@ module Mdlint
 
         def check(tokens, _source)
           each_inline(tokens) do |token|
-            next unless token.content.match?(JAPANESE)
-            next unless token.content.match?(/(?:#{JAPANESE})[A-Za-z0-9]|[A-Za-z0-9](?:#{JAPANESE})/)
+            content = prose_content(token)
+            next unless content.match?(JAPANESE)
+            next unless content.match?(/(?:#{JAPANESE})[A-Za-z0-9]|[A-Za-z0-9](?:#{JAPANESE})/)
 
             add_violation(
               message: "Add a space between Japanese and ASCII text",
@@ -53,8 +60,9 @@ module Mdlint
 
         def check(tokens, _source)
           each_inline(tokens) do |token|
-            next unless token.content.match?(JAPANESE)
-            next unless token.content.match?(/[、。！？] |[,:!?](?:#{JAPANESE})|(?<!\.)\.(?:#{JAPANESE})/)
+            content = prose_content(token)
+            next unless content.match?(JAPANESE)
+            next unless content.match?(/[、。！？] |[,:!?](?:#{JAPANESE})|(?<!\.)\.(?:#{JAPANESE})/)
 
             add_violation(
               message: "Use Japanese punctuation consistently in Japanese prose",
@@ -75,7 +83,7 @@ module Mdlint
         self.preset = :japanese
 
         def check(tokens, _source)
-          prose = tokens.filter_map { |token| token.content if token.type == :inline }.join("\n")
+          prose = tokens.filter_map { |token| prose_content(token) if token.type == :inline }.join("\n")
           has_desu_masu = prose.match?(/です(?:。|\z)|ます(?:。|\z)|でした(?:。|\z)|ません(?:。|\z)/)
           has_de_aru = prose.match?(/である(?:。|\z)|だ(?:。|\z)|であった(?:。|\z)/)
           return @violations unless has_desu_masu && has_de_aru
@@ -103,7 +111,7 @@ module Mdlint
           return @violations if maximum <= 0
 
           each_inline(tokens) do |token|
-            token.content.split(/(?<=[。！？!?])\s*/).each do |sentence|
+            prose_content(token).split(/(?<=[。！？!?])\s*/).each do |sentence|
               next if sentence.empty? || sentence.each_char.count <= maximum
 
               add_violation(
@@ -128,7 +136,7 @@ module Mdlint
         def check(tokens, _source)
           maximum = @options.fetch(:max_commas, 3).to_i
           each_inline(tokens) do |token|
-            token.content.split(/(?<=[。！？!?])\s*/).each do |sentence|
+            prose_content(token).split(/(?<=[。！？!?])\s*/).each do |sentence|
               commas = sentence.count("、,")
               next unless commas > maximum
 
@@ -153,10 +161,34 @@ module Mdlint
 
         def check(tokens, _source)
           each_inline(tokens) do |token|
-            next unless token.content.match?(/の[^。！？\n]{0,12}の|に[^。！？\n]{0,12}に/)
+            next unless prose_content(token).match?(/の[^。！？\n]{0,12}の|に[^。！？\n]{0,12}に/)
 
             add_violation(
               message: "Check repeated Japanese particles such as の or に",
+              line: line_for(token),
+              fixable: false
+            )
+          end
+          @violations
+        end
+      end
+
+      class JapaneseWidth < Rule
+        include JapaneseHelpers
+
+        self.rule_id = "JA007"
+        self.aliases = ["japanese-width"]
+        self.description = "Japanese prose should use full-width brackets and punctuation"
+        self.preset = :japanese
+
+        def check(tokens, _source)
+          each_inline(tokens) do |token|
+            content = prose_content(token)
+            next unless content.match?(JAPANESE)
+            next unless content.match?(/[()\[\]{},.!?;:]/)
+
+            add_violation(
+              message: "Use full-width brackets and punctuation in Japanese prose",
               line: line_for(token),
               fixable: false
             )

@@ -114,12 +114,39 @@ RSpec.describe Mdlint::Linter do
       expect(Mdlint.lint(source, preset: :japanese).map(&:rule_id)).to include("JA003")
     end
 
+    it "checks Japanese full-width brackets and punctuation" do
+      source = "# 見出し\n\nこれは (重要) です.\n"
+
+      expect(Mdlint.lint(source, preset: :japanese).map(&:rule_id)).to include("JA007")
+    end
+
     it "validates supported fenced code blocks when requested" do
       source = "# Example\n\n```json\n{ invalid }\n```\n"
 
       violations = Mdlint.lint(source, check_code_blocks: true)
 
       expect(violations.map(&:rule_id)).to include("MD040")
+    end
+
+    it "runs an opt-in command for an unsupported code-block language" do
+      source = "# Example\n\n```text\nvalid\n```\n"
+
+      violations = Mdlint.lint(
+        source,
+        check_code_blocks: true,
+        code_block_commands: { "text" => "ruby -e 'exit STDIN.read == \"valid\\n\" ? 0 : 1'" }
+      )
+
+      expect(violations.map(&:rule_id)).not_to include("MD040")
+    end
+
+    it "formats an opt-in code block through a command" do
+      source = "# Example\n\n```text\nhello\n```\n"
+      command = "ruby -e 'print STDIN.read.upcase'"
+
+      result = Mdlint.fix(source, code_block_format_commands: { "text" => command })
+
+      expect(result).to include("HELLO")
     end
 
     it "checks anchors in the current document" do

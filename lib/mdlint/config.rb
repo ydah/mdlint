@@ -27,6 +27,9 @@ module Mdlint
       check_links: false,
       check_external_links: false,
       check_code_blocks: false,
+      code_block_commands: {},
+      code_block_format_commands: {},
+      code_block_timeout: 10,
       toc: false,
       table_align: true,
       jobs: 1,
@@ -117,6 +120,9 @@ module Mdlint
       options[:check_links] = parsed[:check_links] if parsed.key?(:check_links)
       options[:check_external_links] = parsed[:check_external_links] if parsed.key?(:check_external_links)
       options[:check_code_blocks] = parsed[:check_code_blocks] if parsed.key?(:check_code_blocks)
+      options[:code_block_commands] = normalize_command_map(parsed[:code_block_commands]) if parsed[:code_block_commands]
+      options[:code_block_format_commands] = normalize_command_map(parsed[:code_block_format_commands]) if parsed[:code_block_format_commands]
+      options[:code_block_timeout] = normalize_timeout(parsed[:code_block_timeout]) if parsed.key?(:code_block_timeout)
       options[:toc] = parsed[:toc] if parsed.key?(:toc)
       options[:table_align] = parsed[:table_align] if parsed.key?(:table_align)
       options[:jobs] = parsed[:jobs].to_i if parsed[:jobs]
@@ -152,6 +158,19 @@ module Mdlint
       end
     rescue ArgumentError, TypeError
       :keep
+    end
+
+    def normalize_command_map(value)
+      return {} unless value.is_a?(Hash)
+
+      value.to_h { |language, command| [language.to_s.downcase, command.to_s] }
+    end
+
+    def normalize_timeout(value)
+      timeout = Integer(value)
+      timeout.positive? ? timeout : DEFAULT_OPTIONS[:code_block_timeout]
+    rescue ArgumentError, TypeError
+      DEFAULT_OPTIONS[:code_block_timeout]
     end
 
     def merge_options(file_options)

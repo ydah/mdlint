@@ -75,13 +75,16 @@ module Mdlint
         opts.on("--rule RULES", "Run only comma-separated rules") { |rules| @cli_options[:rules] = split_rules(rules) }
         opts.on("--severity LEVEL", "Default severity: error, warning, or info") { |level| @cli_options[:severity] = parse_level(level) }
         opts.on("--fail-level LEVEL", "Fail at severity: error, warning, or info") { |level| @cli_options[:fail_level] = parse_level(level) }
-        opts.on("--format FORMAT", "Lint output: text, json, sarif, github, checkstyle, junit") { |format| @cli_options[:format] = format }
+        opts.on("--format FORMAT", "Lint output: text, json, sarif, github, checkstyle, junit, reviewdog") { |format| @cli_options[:format] = format }
         opts.on("--stdin-filename NAME", "Filename to use for stdin diagnostics") { |name| @cli_options[:stdin_filename] = name }
         opts.on("--dialect DIALECT", "Markdown dialect: commonmark or gfm") { |dialect| @cli_options[:dialect] = dialect.to_sym }
         opts.on("--preset NAME", "Enable a rule preset, such as japanese") { |preset| @cli_options[:preset] = preset.to_sym }
         opts.on("--check-links", "Check relative link, image, and anchor targets") { @cli_options[:check_links] = true }
         opts.on("--check-external-links", "Check external HTTP(S) links") { @cli_options[:check_external_links] = true }
         opts.on("--check-code-blocks", "Validate supported fenced code blocks") { @cli_options[:check_code_blocks] = true }
+        opts.on("--code-block-command SPEC", "Validate a language block with LANG=COMMAND") { |spec| add_code_block_command(:code_block_commands, spec) }
+        opts.on("--code-block-formatter SPEC", "Format a language block with LANG=COMMAND") { |spec| add_code_block_command(:code_block_format_commands, spec) }
+        opts.on("--code-block-timeout SECONDS", Integer, "Timeout for external code-block commands") { |seconds| @cli_options[:code_block_timeout] = [seconds, 1].max }
         opts.on("--toc", "Update table-of-contents markers while formatting") { @cli_options[:toc] = true }
         opts.on("--no-table-align", "Do not pad GFM table columns") { @cli_options[:table_align] = false }
         opts.on("--jobs N", Integer, "Process files concurrently") { |jobs| @cli_options[:jobs] = [jobs, 1].max }
@@ -183,7 +186,7 @@ module Mdlint
     def write_auto_gen_config(entries)
       rules = entries.to_h { |entry| [entry[:violation].rule_id, false] }
       path = @options[:auto_gen_config]
-      File.write(path, YAML.dump("rules" => rules))
+      File.write(path, YAML.dump({ "rules" => rules }))
       puts "Wrote #{path}" unless @options[:quiet]
       0
     end
@@ -324,12 +327,24 @@ module Mdlint
         check_links: @options[:check_links],
         check_external_links: @options[:check_external_links],
         check_code_blocks: @options[:check_code_blocks],
+        code_block_commands: @options[:code_block_commands],
+        code_block_format_commands: @options[:code_block_format_commands],
+        code_block_timeout: @options[:code_block_timeout],
         filename: filename
       }.compact
     end
 
     def split_rules(value)
       value.split(",").map(&:strip).reject(&:empty?)
+    end
+
+    def add_code_block_command(key, specification)
+      language, command = specification.split("=", 2)
+      raise OptionParser::InvalidArgument, "expected LANG=COMMAND" if language.to_s.empty? || command.to_s.empty?
+
+      @cli_options[key] ||= {}
+      @cli_options[key][language.downcase] = command
+      @cli_options[:check_code_blocks] = true
     end
 
     def parse_wrap_mode(mode)

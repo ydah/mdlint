@@ -29,9 +29,11 @@
 - Text, JSON, SARIF, Checkstyle, JUnit, and GitHub diagnostic output
 - Optional HTML rendering through the Ruby API
 - GitHub Action and RBS/Steep signatures for integration and tooling
+- reviewdog-compatible RDJSON output through the CLI and GitHub Action
 - Language Server Protocol diagnostics, formatting, and quick fixes
 - Parallel linting with a content/configuration-hash cache
 - Japanese technical-writing preset, code-block syntax checks, link/anchor checks, and TOC updates
+- Optional language commands for code-block validation and formatting
 
 ## Quickstart
 
@@ -102,13 +104,16 @@ Options:
         --rule RULES          Run only comma-separated rules
         --severity LEVEL      Default severity: error, warning, or info
         --fail-level LEVEL    Fail at severity: error, warning, or info
-        --format FORMAT       Lint output: text, json, sarif, github, checkstyle, junit
+        --format FORMAT       Lint output: text, json, sarif, github, checkstyle, junit, reviewdog
         --stdin-filename NAME Filename to use for stdin diagnostics
         --dialect DIALECT     Markdown dialect: commonmark or gfm
         --preset NAME          Enable a rule preset, such as japanese
         --check-links          Check relative link, image, and anchor targets
         --check-external-links Check external HTTP(S) links
         --check-code-blocks    Validate supported fenced code blocks
+        --code-block-command SPEC Validate a language block with LANG=COMMAND
+        --code-block-formatter SPEC Format a language block with LANG=COMMAND
+        --code-block-timeout SECONDS Timeout for external code-block commands
         --toc                  Update table-of-contents markers
         --no-table-align       Do not pad GFM table columns
         --jobs N               Process files concurrently
@@ -169,6 +174,7 @@ toc: false
 check_links: false
 check_external_links: false
 check_code_blocks: false
+code_block_timeout: 10
 jobs: 2
 cache: true
 cache_path: .mdlint_cache
@@ -202,8 +208,10 @@ Key rules:
 - Lines should respect MD013's configured length
 - Relative links, images, and anchors can be checked with `mdlint lint --check-links`.
 - External HTTP(S) links are opt-in with `--check-external-links`.
-- `--preset japanese` enables JA001–JA006 writing checks; options include `sentence_length` and `max_commas`.
+- `--preset japanese` enables JA001–JA007 writing checks; options include `sentence_length` and `max_commas`.
 - `--check-code-blocks` validates JSON and Ruby fenced blocks.
+- `--code-block-command python='python -m py_compile -'` adds opt-in validation for another language; commands receive block content on stdin.
+- `--code-block-formatter python='black -'` can rewrite an external language block; commands are bounded by `code_block_timeout` (10 seconds by default).
 - `--toc` regenerates content between paired `<!-- toc -->` or `<!-- toc:start -->` / `<!-- toc:end -->` markers.
 
 Inline directives can suppress diagnostics for a section or one line:
@@ -265,12 +273,14 @@ With `dialect: gfm`, tables, task lists, strikethrough, and bare URL autolinks a
 bin/setup
 bundle exec rspec
 rbs validate
-steep check --no-daemon
+steep check --no-daemon --severity-level error
 
 # Optional quality tools
 ruby script/fetch_commonmark_spec.rb
 bundle exec rspec spec/commonmark_spec.rb
 ITERATIONS=100 ruby benchmark/format.rb README.md
+ruby script/commonmark_compatibility.rb spec/fixtures/commonmark_smoke.json
+ITERATIONS=100 ruby benchmark/compare.rb README.md
 ```
 
 ## Contributing

@@ -70,7 +70,10 @@ module Mdlint
           when :table
             output << render_table(token)
             index += 1
-          when :front_matter, :directive, :reference_definition
+          when :directive
+            output << render_directive(token)
+            index += 1
+          when :front_matter, :reference_definition
             index += 1
           else
             index += 1
@@ -145,6 +148,29 @@ module Mdlint
           "<tr>#{cells}</tr>\n"
         end.join
         "<table>\n<thead><tr>#{header}</tr></thead>\n<tbody>\n#{body}</tbody>\n</table>\n"
+      end
+
+      def render_directive(token)
+        name = token.meta[:name].to_s.downcase
+        return token.content unless %w[note tip important warning caution message details].include?(name)
+
+        lines = token.content.gsub(/\r\n/, "\n").split("\n", -1)
+        lines.shift
+        lines.pop while lines.last.to_s.empty?
+        lines.pop if lines.last.to_s.strip == ":::"
+        inner_source = lines.join("\n")
+        inner_source += "\n" unless inner_source.empty?
+        inner_tokens = Parser.parse(inner_source, @options)
+        inner_html = render_sequence(inner_tokens, 0).first
+        title = token.meta[:title].to_s
+
+        if name == "details"
+          summary = title.empty? ? "Details" : title
+          "<details>\n<summary>#{escape(summary)}</summary>\n#{inner_html}</details>\n"
+        else
+          title_html = title.empty? ? "" : "<p class=\"markdown-directive-title\">#{escape(title)}</p>\n"
+          "<aside class=\"markdown-directive markdown-directive-#{escape_attribute(name)}\">\n#{title_html}#{inner_html}</aside>\n"
+        end
       end
 
       def render_cell(value)
