@@ -41,7 +41,8 @@ module Mdlint
       def parse_block(state)
         return if state.eof?
 
-        parse_blank_line(state) ||
+        parse_front_matter(state) ||
+          parse_blank_line(state) ||
           parse_atx_heading(state) ||
           parse_fence(state) ||
           parse_hr(state) ||
@@ -53,6 +54,47 @@ module Mdlint
           parse_code_block(state) ||
           parse_setext_heading(state) ||
           parse_paragraph(state)
+      end
+
+      def parse_front_matter(state)
+        return false unless state.line.zero?
+
+        opener = state.current_line
+        format, closing_marker = front_matter_markers(opener)
+        return false unless format
+
+        closing_line = state.lines[(state.line + 1)..]&.index do |line|
+          line.strip == closing_marker
+        end
+        return false unless closing_line
+
+        closing_line += state.line + 1
+        start_line = state.line
+        raw_lines = state.lines[start_line..closing_line]
+        content = raw_lines.join("\n")
+        content += "\n" if closing_line < state.lines.length - 1 || state.src.end_with?("\n")
+
+        state.tokens << Token.new(
+          type: :front_matter,
+          content: content,
+          meta: { format: format, delimiter: closing_marker },
+          map: [start_line, closing_line + 1]
+        )
+        state.line = closing_line + 1
+        true
+      end
+
+      def front_matter_markers(opener)
+        case opener.strip
+        when "---"
+          [:yaml, "---"]
+        when "+++"
+          [:toml, "+++"]
+        when ";;;"
+          [:json, ";;;"]
+        when "{"
+          [:json, "}"]
+        end
       end
 
       def parse_blank_line(state)

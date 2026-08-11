@@ -4,6 +4,29 @@ require "mdlint"
 
 RSpec.describe Mdlint::Parser do
   describe ".parse" do
+    it "preserves YAML front matter at the beginning of a document" do
+      tokens = Mdlint.parse("---\ntitle: Hello\ntags: [a, b]\n---\n# Heading\n")
+      front_matter = tokens.find { |t| t.type == :front_matter }
+
+      expect(front_matter.content).to eq("---\ntitle: Hello\ntags: [a, b]\n---\n")
+      expect(tokens.map(&:type)).to include(:heading_open)
+    end
+
+    it "does not treat a later delimiter as front matter" do
+      tokens = Mdlint.parse("# Heading\n\n---\n")
+
+      expect(tokens.none? { |t| t.type == :front_matter }).to be true
+      expect(tokens.any? { |t| t.type == :hr }).to be true
+    end
+
+    it "preserves TOML and JSON front matter" do
+      toml = Mdlint.parse("+++\ntitle = 'Hello'\n+++\n# Heading\n")
+      json = Mdlint.parse(";;;\n{\"title\": \"Hello\"}\n;;;\n# Heading\n")
+
+      expect(toml.find { |t| t.type == :front_matter }.meta[:format]).to eq(:toml)
+      expect(json.find { |t| t.type == :front_matter }.meta[:format]).to eq(:json)
+    end
+
     it "parses setext headings as heading tokens" do
       tokens = Mdlint.parse("\nTitle\n---\n")
       heading = tokens.find { |t| t.type == :heading_open }

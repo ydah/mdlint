@@ -7,17 +7,17 @@ require_relative "parser/inline_parser"
 module Mdlint
   module Parser
     class << self
-      def parse(src)
-        block_parser = BlockParser.new
+      def parse(src, options = {})
+        block_parser = BlockParser.new(options)
         tokens = block_parser.parse(src)
-        parse_inline_tokens(tokens)
+        parse_inline_tokens(tokens, options)
         tokens
       end
 
       private
 
-      def parse_inline_tokens(tokens)
-        inline_parser = InlineParser.new
+      def parse_inline_tokens(tokens, options)
+        inline_parser = InlineParser.new(options)
         tokens.each do |token|
           next unless token.type == :inline
 

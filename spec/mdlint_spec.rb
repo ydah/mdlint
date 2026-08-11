@@ -6,6 +6,14 @@ RSpec.describe Mdlint do
   end
 
   describe ".format" do
+    it "keeps front matter opaque while formatting the document" do
+      input = "---\ntitle:  Hello\n---\n\n#  Heading\n"
+      output = Mdlint.format(input)
+
+      expect(output).to start_with("---\ntitle:  Hello\n---\n")
+      expect(output).to include("# Heading\n")
+    end
+
     it "formats ATX headings" do
       input = "#   Title  \n"
       expected = "# Title\n"
@@ -97,6 +105,14 @@ RSpec.describe Mdlint do
       tokens = Mdlint.parse("# Title\n")
       inline_token = tokens.find { |t| t.type == :inline }
       expect(inline_token.children).not_to be_empty
+    end
+  end
+
+  describe ".fix" do
+    it "returns formatted source instead of parser tokens" do
+      result = Mdlint.fix("Line \n")
+
+      expect(result).to eq("Line\n")
     end
   end
 end

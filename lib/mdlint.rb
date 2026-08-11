@@ -11,7 +11,7 @@ module Mdlint
 
   class << self
     def format(src, options = {})
-      tokens = Parser.parse(src)
+      tokens = Parser.parse(src, options)
       Renderer.render(tokens, options)
     end
 
@@ -29,6 +29,10 @@ module Mdlint
 
     def parse(src)
       Parser.parse(src)
+    end
+
+    def fix(src, options = {})
+      Linter.fix(src, options)
     end
 
     def lint(src, options = {})

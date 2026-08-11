@@ -5,6 +5,7 @@ module Mdlint
     module Rules
       class NoTrailingSpaces < Rule
         self.rule_id = "MD009"
+        self.aliases = ["no-trailing-spaces"]
         self.description = "Trailing spaces"
 
         def check(_tokens, source)

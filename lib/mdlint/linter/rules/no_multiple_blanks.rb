@@ -5,6 +5,7 @@ module Mdlint
     module Rules
       class NoMultipleBlanks < Rule
         self.rule_id = "MD012"
+        self.aliases = ["no-multiple-blanks"]
         self.description = "Multiple consecutive blank lines"
 
         def check(_tokens, source)

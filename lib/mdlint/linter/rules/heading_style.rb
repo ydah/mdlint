@@ -5,6 +5,7 @@ module Mdlint
     module Rules
       class HeadingStyle < Rule
         self.rule_id = "MD003"
+        self.aliases = ["heading-style"]
         self.description = "Heading style should be consistent"
 
         def check(tokens, _source)
@@ -22,8 +23,8 @@ module Mdlint
           @violations
         end
 
-        def fix(tokens, _source)
-          tokens
+        def fix(_tokens, source)
+          source
         end
       end
     end

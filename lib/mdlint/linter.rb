@@ -13,13 +13,13 @@ module Mdlint
   module Linter
     class << self
       def check(src, options = {})
-        tokens = Parser.parse(src)
+        tokens = Parser.parse(src, options)
         engine = RuleEngine.new(options)
         engine.check(tokens, src)
       end
 
       def fix(src, options = {})
-        tokens = Parser.parse(src)
+        tokens = Parser.parse(src, options)
         engine = RuleEngine.new(options)
         engine.fix(tokens, src)
       end

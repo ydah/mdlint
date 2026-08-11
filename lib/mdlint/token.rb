@@ -47,7 +47,7 @@ module Mdlint
       list_item_open list_item_close
       blockquote_open blockquote_close
       code_block fence
-      hr html_block
+      hr html_block front_matter
       inline
     ].freeze
 

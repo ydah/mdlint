@@ -15,7 +15,9 @@ module Mdlint
       check: false,
       diff: false,
       quiet: false,
-      exclude: []
+      exclude: [],
+      rules: nil,
+      disable: []
     }.freeze
 
     attr_reader :options
@@ -81,12 +83,31 @@ module Mdlint
       options[:check] = parsed[:check] if parsed.key?(:check)
       options[:diff] = parsed[:diff] if parsed.key?(:diff)
       options[:quiet] = parsed[:quiet] if parsed.key?(:quiet)
+      options[:rules] = normalize_rules(parsed[:rules]) if parsed.key?(:rules)
+
+      if parsed[:disable]
+        options[:disable] = Array(parsed[:disable]).map(&:to_s)
+      end
 
       if parsed[:exclude]
         options[:exclude] = Array(parsed[:exclude])
       end
 
       options
+    end
+
+    def normalize_rules(rules)
+      return rules unless rules.is_a?(Hash)
+
+      rules.each_with_object({}) do |(rule_id, setting), normalized|
+        normalized[rule_id.to_s] = if setting.is_a?(Hash)
+                                     normalized_setting = setting.transform_keys(&:to_sym)
+                                     normalized_setting[:severity] = normalized_setting[:severity].to_sym if normalized_setting[:severity]
+                                     normalized_setting
+                                   else
+                                     setting
+                                   end
+      end
     end
 
     def merge_options(file_options)

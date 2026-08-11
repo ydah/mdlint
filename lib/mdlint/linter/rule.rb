@@ -4,7 +4,7 @@ module Mdlint
   module Linter
     class Rule
       class << self
-        attr_accessor :rule_id, :description
+        attr_accessor :rule_id, :description, :aliases
 
         def inherited(subclass)
           super
@@ -14,7 +14,8 @@ module Mdlint
 
       attr_reader :violations
 
-      def initialize
+      def initialize(options = {})
+        @options = options
         @violations = []
       end
 
@@ -23,7 +24,7 @@ module Mdlint
       end
 
       def fix(_tokens, _source)
-        raise NotImplementedError, "Subclasses must implement #fix"
+        _source
       end
 
       protected
@@ -34,7 +35,8 @@ module Mdlint
           message: message,
           line: line,
           column: column,
-          fixable: fixable
+          fixable: fixable,
+          severity: @options[:severity] || :warning
         )
       end
     end
@@ -54,7 +56,16 @@ module Mdlint
         end
 
         def find(rule_id)
-          @rules.find { |r| r.rule_id == rule_id }
+          normalized_id = normalize_id(rule_id)
+          @rules.find { |r| r.rule_id == normalized_id }
+        end
+
+        def normalize_id(rule_id)
+          value = rule_id.to_s
+          rule = @rules.find do |rule_class|
+            rule_class.rule_id == value || Array(rule_class.aliases).include?(value)
+          end
+          rule ? rule.rule_id : value
         end
 
         def clear

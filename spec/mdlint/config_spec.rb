@@ -65,6 +65,24 @@ RSpec.describe Mdlint::Config do
       expect(options[:exclude]).to eq(["docs/*.md"])
     end
 
+    it "loads rule settings and disabled rules" do
+      File.write(File.join(tmpdir, ".mdlint.yml"), <<~YAML)
+        rules:
+          MD001:
+            enabled: true
+            severity: error
+          MD009: false
+        disable:
+          - heading-style
+      YAML
+
+      options = described_class.new(tmpdir).load
+
+      expect(options[:rules]["MD001"][:severity]).to eq(:error)
+      expect(options[:rules]["MD009"]).to be false
+      expect(options[:disable]).to eq(["heading-style"])
+    end
+
     it "warns and returns defaults on invalid YAML" do
       File.write(File.join(tmpdir, ".mdlint.yml"), "check: [\n")
 

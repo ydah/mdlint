@@ -5,6 +5,7 @@ module Mdlint
     module Rules
       class HeadingIncrement < Rule
         self.rule_id = "MD001"
+        self.aliases = ["heading-increment"]
         self.description = "Heading levels should only increment by one level at a time"
 
         def check(tokens, _source)
@@ -27,8 +28,8 @@ module Mdlint
           @violations
         end
 
-        def fix(tokens, _source)
-          tokens
+        def fix(_tokens, source)
+          source
         end
       end
     end

@@ -70,6 +70,26 @@ RSpec.describe Mdlint::Linter do
       expect(violations.map(&:rule_id)).to contain_exactly("MD001")
     end
   end
+
+  describe "fix contract" do
+    it "returns source unchanged for token-only rules" do
+      source = "# Heading\n\n### Jump\n"
+
+      expect(Mdlint::Linter.fix(source, rules: ["MD001"])).to eq(source)
+    end
+
+    it "applies severity configured for a rule" do
+      violations = Mdlint.lint("# Heading\n\n### Jump\n", rules: { "MD001" => { severity: :error } })
+
+      expect(violations.find { |violation| violation.rule_id == "MD001" }.severity).to eq(:error)
+    end
+
+    it "accepts rule aliases" do
+      violations = Mdlint.lint("# Heading\n\n### Jump\n", rules: ["heading-increment"])
+
+      expect(violations.map(&:rule_id)).to eq(["MD001"])
+    end
+  end
 end
 
 RSpec.describe Mdlint::Linter::Violation do

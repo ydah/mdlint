@@ -103,6 +103,11 @@ module Mdlint
             output << token.content
             output << "\n" unless token.content.end_with?("\n")
             i += 1
+          when :front_matter
+            output << token.content
+            output << "\n" unless token.content.end_with?("\n")
+            output << "\n"
+            i += 1
           when :reference_definition
             # Skip - will be output at the end
             i += 1

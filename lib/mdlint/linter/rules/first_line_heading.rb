@@ -5,6 +5,7 @@ module Mdlint
     module Rules
       class FirstLineHeading < Rule
         self.rule_id = "MD041"
+        self.aliases = ["first-line-heading"]
         self.description = "First line in file should be a top-level heading"
 
         def check(tokens, _source)
@@ -32,8 +33,8 @@ module Mdlint
           @violations
         end
 
-        def fix(tokens, _source)
-          tokens
+        def fix(_tokens, source)
+          source
         end
       end
     end
