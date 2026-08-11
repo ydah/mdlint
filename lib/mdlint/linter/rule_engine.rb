@@ -57,7 +57,8 @@ module Mdlint
       def rule_options(rule_class)
         setting = rule_setting(rule_class)
         setting = {} unless setting.is_a?(Hash)
-        setting = setting.transform_keys(&:to_sym)
+        global_options = @options.reject { |key, _value| %i[rules disable].include?(key) }
+        setting = global_options.merge(setting.transform_keys(&:to_sym))
         setting[:severity] ||= @options[:severity] if @options[:severity]
         setting
       end

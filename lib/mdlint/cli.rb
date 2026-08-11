@@ -75,6 +75,7 @@ module Mdlint
         opts.on("--format FORMAT", "Lint output: text, json, sarif, github, checkstyle, junit") { |format| @cli_options[:format] = format }
         opts.on("--stdin-filename NAME", "Filename to use for stdin diagnostics") { |name| @cli_options[:stdin_filename] = name }
         opts.on("--dialect DIALECT", "Markdown dialect: commonmark or gfm") { |dialect| @cli_options[:dialect] = dialect.to_sym }
+        opts.on("--check-links", "Check relative link and image targets") { @cli_options[:check_links] = true }
         opts.on("--list-rules", "List available lint rules") { @cli_options[:list_rules] = true }
         opts.on("--explain RULE", "Explain a lint rule") { |rule| @cli_options[:explain] = rule }
         opts.on("--require PATH", "Load a custom rule file") { |path| (@cli_options[:require] ||= []) << path }
@@ -179,7 +180,7 @@ module Mdlint
       fixed_source = apply_lint_fix(filename, source, nil)
       return [] if @options[:fix_only]
 
-      Mdlint.lint(fixed_source, lint_options).map { |violation| { filename: filename, violation: violation } }
+      Mdlint.lint(fixed_source, lint_options(filename)).map { |violation| { filename: filename, violation: violation } }
     end
 
     def process_lint_file(file)
@@ -187,13 +188,13 @@ module Mdlint
       fixed_source = apply_lint_fix(file, source, file)
       return [] if @options[:fix_only]
 
-      Mdlint.lint(fixed_source, lint_options).map { |violation| { filename: file, violation: violation } }
+      Mdlint.lint(fixed_source, lint_options(file)).map { |violation| { filename: file, violation: violation } }
     end
 
     def apply_lint_fix(filename, source, path)
       return source unless fix_requested?
 
-      fixed = Mdlint.fix(source, lint_options)
+      fixed = Mdlint.fix(source, lint_options(filename))
       return source if fixed == source
 
       if path && !@options[:dry_run]
@@ -283,12 +284,14 @@ module Mdlint
       }
     end
 
-    def lint_options
+    def lint_options(filename = nil)
       {
         rules: @options[:rules],
         disable: @options[:disable] || [],
         severity: @options[:severity],
-        dialect: @options[:dialect] || :commonmark
+        dialect: @options[:dialect] || :commonmark,
+        check_links: @options[:check_links],
+        filename: filename
       }.compact
     end
 

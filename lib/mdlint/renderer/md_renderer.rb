@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "set"
+require_relative "../text_width"
 
 module Mdlint
   module Renderer
@@ -116,6 +117,11 @@ module Mdlint
           when :table
             render_table(token, output)
             i += 1
+          when :math_block, :footnote_definition
+            output << token.content
+            output << "\n" unless token.content.end_with?("\n")
+            output << "\n"
+            i += 1
           when :reference_definition
             # Skip - will be output at the end
             i += 1
@@ -190,19 +196,34 @@ module Mdlint
           words.each do |word|
             if current_line.empty?
               current_line = word
-            elsif (current_line.length + 1 + word.length) <= width
+            elsif (TextWidth.measure(current_line) + 1 + TextWidth.measure(word)) <= width
               current_line += " " + word
             else
-              lines << current_line
+              lines.concat(split_to_width(current_line, width))
               current_line = word
             end
           end
 
-          lines << current_line unless current_line.empty?
+          lines.concat(split_to_width(current_line, width)) unless current_line.empty?
           lines << "" if idx < paragraphs.length - 1
         end
 
         lines.join("\n")
+      end
+
+      def split_to_width(text, width)
+        return [text] if TextWidth.measure(text) <= width
+
+        chunks = []
+        remaining = text
+        while !remaining.empty?
+          chunk = TextWidth.take(remaining, width)
+          break if chunk.empty?
+
+          chunks << chunk
+          remaining = remaining[chunk.length..]
+        end
+        chunks
       end
 
       def render_bullet_list(tokens, start_index, output)
@@ -405,6 +426,10 @@ module Mdlint
             else
               output << "#{backticks}#{content}#{backticks}"
             end
+          when :math_inline
+            output << "$#{token.content}$"
+          when :footnote_ref
+            output << "[^#{token.attrs[:label]}]"
           when :strong_open
             markup = token.markup.empty? ? "**" : token.markup
             close_index = find_close_token(tokens, i, :strong_close)

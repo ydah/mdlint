@@ -82,6 +82,13 @@ RSpec.describe Mdlint do
       expect(lines.all? { |l| l.length <= 40 }).to be true
     end
 
+    it "wraps Japanese text by display width" do
+      result = Mdlint.format("日本語の文章を折り返します。\n", wrap: 10)
+      lines = result.split("\n").reject(&:empty?)
+
+      expect(lines.all? { |line| Mdlint::TextWidth.measure(line) <= 10 }).to be true
+    end
+
     it "removes line breaks with wrap: :no option" do
       input = "Line one\nLine two\n"
       result = Mdlint.format(input, wrap: :no)
@@ -92,6 +99,13 @@ RSpec.describe Mdlint do
       input = "Hello\nWorld\n"
       result = Mdlint.format(input, end_of_line: :crlf)
       expect(result).to include("\r\n")
+    end
+
+    it "is idempotent for ordinary Markdown" do
+      input = "#  Title\n\nParagraph with **bold** and [link](https://example.com).\n"
+      formatted = Mdlint.format(input)
+
+      expect(Mdlint.format(formatted)).to eq(formatted)
     end
 
     it "formats GFM tables and task lists" do
@@ -119,6 +133,22 @@ RSpec.describe Mdlint do
       expect(result).to include("<table>")
       expect(result).to include("<del>done</del>")
       expect(result).to include('type="checkbox" disabled checked')
+    end
+
+    it "preserves rendered meaning through formatting" do
+      input = "#  Title\n\nParagraph with **bold** and [link](https://example.com).\n"
+
+      expect(Mdlint.html(input)).to eq(Mdlint.html(Mdlint.format(input)))
+    end
+
+    it "preserves footnotes and math" do
+      input = "# Formula\n\nA note[^one] and $x^2$.\n\n[^one]: Footnote\n\n$$\nx^2\n$$\n"
+
+      formatted = Mdlint.format(input)
+
+      expect(formatted).to include("[^one]: Footnote")
+      expect(formatted).to include("$$\nx^2\n$$")
+      expect(Mdlint.html(formatted)).to include("fn-one", "math-block", "math-inline")
     end
   end
 

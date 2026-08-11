@@ -22,6 +22,8 @@ module Mdlint
       HTML_BLOCK_START_6 = /\A {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
       # Reference definition: [label]: url "title"
       REFERENCE_DEF_REGEXP = /\A {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*$/
+      FOOTNOTE_DEF_REGEXP = /\A {0,3}\[\^([^\]]+)\]:\s*(.*?)\s*$/
+      MATH_BLOCK_REGEXP = /\A {0,3}\$\$\s*$/
 
       def initialize(options = {})
         @options = options
@@ -47,6 +49,7 @@ module Mdlint
           parse_blank_line(state) ||
           parse_atx_heading(state) ||
           parse_directive(state) ||
+          parse_math_block(state) ||
           parse_fence(state) ||
           parse_hr(state) ||
           parse_blockquote(state) ||
@@ -54,6 +57,7 @@ module Mdlint
           parse_ordered_list(state) ||
           parse_table(state) ||
           parse_html_block(state) ||
+          parse_footnote_definition(state) ||
           parse_reference_definition(state) ||
           parse_code_block(state) ||
           parse_setext_heading(state) ||
@@ -79,6 +83,26 @@ module Mdlint
           map: [start_line, closing_line + 1]
         )
         state.line = closing_line + 1
+        true
+      end
+
+      def parse_math_block(state)
+        return false unless state.current_line.match?(MATH_BLOCK_REGEXP)
+
+        start_line = state.line
+        content_lines = [state.current_line]
+        state.next_line
+        until state.eof?
+          content_lines << state.current_line
+          state.next_line
+          break if content_lines.last.match?(MATH_BLOCK_REGEXP)
+        end
+
+        state.tokens << Token.new(
+          type: :math_block,
+          content: content_lines.join("\n") + "\n",
+          map: [start_line, state.line]
+        )
         true
       end
 
@@ -677,6 +701,29 @@ module Mdlint
         true
       end
 
+      def parse_footnote_definition(state)
+        match = state.current_line.match(FOOTNOTE_DEF_REGEXP)
+        return false unless match
+
+        start_line = state.line
+        raw_lines = [state.current_line]
+        content = match[2]
+        state.next_line
+        while !state.eof? && state.current_line.match?(/\A {4}/)
+          raw_lines << state.current_line
+          content = "#{content}\n#{state.current_line.sub(/\A {4}/, "")}"
+          state.next_line
+        end
+
+        state.tokens << Token.new(
+          type: :footnote_definition,
+          content: raw_lines.join("\n") + "\n",
+          attrs: { label: match[1].downcase, content: content },
+          map: [start_line, state.line]
+        )
+        true
+      end
+
       def parse_paragraph(state)
         return false if state.blank_line?
 
@@ -686,12 +733,14 @@ module Mdlint
         while !state.eof? && !state.blank_line?
           line = state.current_line
           break if line.match?(ATX_HEADING_REGEXP) ||
+                   line.match?(MATH_BLOCK_REGEXP) ||
                    line.match?(FENCE_OPEN_REGEXP) ||
                    line.match?(HR_REGEXP) ||
                    line.match?(BLOCKQUOTE_REGEXP) ||
                    line.match?(BULLET_LIST_REGEXP) ||
                    line.match?(ORDERED_LIST_REGEXP) ||
-                   line.match?(REFERENCE_DEF_REGEXP)
+                   line.match?(REFERENCE_DEF_REGEXP) ||
+                   line.match?(FOOTNOTE_DEF_REGEXP)
 
           if state.peek_line&.match?(SETEXT_HEADING_REGEXP)
             break if content_lines.any?

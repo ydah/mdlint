@@ -174,5 +174,13 @@ RSpec.describe Mdlint::Parser do
       expect(task.attrs).to include(task: true, checked: true)
       expect(inline.children.map(&:type)).to include(:s_open, :s_close)
     end
+
+    it "preserves footnotes and math tokens" do
+      tokens = Mdlint.parse("A note[^one] and $x^2$.\n\n[^one]: Footnote\n\n$$\nx^2\n$$\n")
+
+      expect(tokens.map(&:type)).to include(:footnote_definition, :math_block)
+      inline = tokens.find { |token| token.type == :inline }
+      expect(inline.children.map(&:type)).to include(:footnote_ref, :math_inline)
+    end
   end
 end

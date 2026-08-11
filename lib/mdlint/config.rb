@@ -22,7 +22,8 @@ module Mdlint
       fail_level: :warning,
       format: nil,
       dialect: :commonmark,
-      plugins: []
+      plugins: [],
+      check_links: false
     }.freeze
 
     attr_reader :options
@@ -46,6 +47,8 @@ module Mdlint
         case key
         when :exclude
           @options[:exclude] = (@options[:exclude] + value).uniq
+        when :disable, :plugins
+          @options[key] = (@options[key] + Array(value)).uniq
         else
           @options[key] = value unless value.nil?
         end
@@ -99,6 +102,7 @@ module Mdlint
       options[:format] = parsed[:format].to_s if parsed[:format]
       options[:dialect] = parsed[:dialect].to_sym if parsed[:dialect]
       options[:plugins] = Array(parsed[:plugins]).map(&:to_s) if parsed[:plugins]
+      options[:check_links] = parsed[:check_links] if parsed.key?(:check_links)
 
       if parsed[:exclude]
         options[:exclude] = Array(parsed[:exclude])
@@ -126,6 +130,8 @@ module Mdlint
         case key
         when :exclude
           @options[:exclude] = (@options[:exclude] + value).uniq
+        when :disable, :plugins
+          @options[key] = (@options[key] + Array(value)).uniq
         else
           @options[key] = value
         end

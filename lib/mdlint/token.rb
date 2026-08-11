@@ -47,7 +47,7 @@ module Mdlint
       list_item_open list_item_close
       blockquote_open blockquote_close
       code_block fence
-      hr html_block front_matter table directive
+      hr html_block front_matter table directive math_block footnote_definition
       inline
     ].freeze
 
@@ -56,6 +56,7 @@ module Mdlint
       strong_open strong_close
       em_open em_close
       s_open s_close
+      math_inline footnote_ref
       code_inline
       link_open link_close
       image

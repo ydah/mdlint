@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../../text_width"
+
 module Mdlint
   module Linter
     module Rules
@@ -17,10 +19,10 @@ module Mdlint
             stripped = line.chomp
             in_fence = !in_fence if stripped.match?(/\A {0,3}(`{3,}|~{3,})/)
             next if in_fence && @options.fetch(:ignore_code_blocks, false)
-            next if stripped.length <= maximum
+            next if TextWidth.measure(stripped) <= maximum
 
             add_violation(
-              message: "Line length #{stripped.length} exceeds #{maximum}",
+              message: "Line length #{TextWidth.measure(stripped)} exceeds #{maximum}",
               line: line_number,
               column: maximum + 1,
               fixable: false

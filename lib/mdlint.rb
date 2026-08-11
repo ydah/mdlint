@@ -2,6 +2,7 @@
 
 require_relative "mdlint/version"
 require_relative "mdlint/dialect"
+require_relative "mdlint/text_width"
 require_relative "mdlint/token"
 require_relative "mdlint/parser"
 require_relative "mdlint/renderer"
@@ -47,7 +48,7 @@ module Mdlint
 
     def lint_file(path, options = {})
       src = File.read(path)
-      lint(src, options)
+      lint(src, options.merge(filename: path))
     end
   end
 end

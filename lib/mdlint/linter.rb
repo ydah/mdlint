@@ -10,6 +10,7 @@ require_relative "linter/rules/no_trailing_spaces"
 require_relative "linter/rules/no_multiple_blanks"
 require_relative "linter/rules/first_line_heading"
 require_relative "linter/rules/line_length"
+require_relative "linter/rules/link_check"
 
 module Mdlint
   module Linter

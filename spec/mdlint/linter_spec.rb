@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tmpdir"
+
 RSpec.describe Mdlint::Linter do
   describe ".check" do
     it "detects heading level increment violations" do
@@ -57,6 +59,19 @@ RSpec.describe Mdlint::Linter do
       violations = Mdlint.lint(source, rules: { "MD013" => { line_length: 10 } })
 
       expect(violations.map(&:rule_id)).to include("MD013")
+    end
+
+    it "checks relative links only when requested" do
+      Dir.mktmpdir do |directory|
+        path = File.join(directory, "README.md")
+        File.write(File.join(directory, "present.md"), "# Present\n")
+        source = "# Links\n\n[present](present.md) [missing](missing.md) https://example.com\n"
+
+        violations = Mdlint.lint(source, check_links: true, filename: path)
+
+        expect(violations.map(&:rule_id)).to eq(["MD052"])
+        expect(violations.first.message).to include("missing.md")
+      end
     end
 
     it "supports inline disable and enable directives" do

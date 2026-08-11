@@ -47,6 +47,14 @@ module Mdlint
           when :code_block
             output << "<pre><code>#{escape(token.content)}</code></pre>\n"
             index += 1
+          when :math_block
+            output << "<div class=\"math-block\">#{escape(token.content)}</div>\n"
+            index += 1
+          when :footnote_definition
+            label = escape_attribute(token.attrs[:label])
+            content = escape(token.attrs[:content])
+            output << "<div class=\"footnote\" id=\"fn-#{label}\"><sup>#{label}</sup> #{content}</div>\n"
+            index += 1
           when :hr
             output << "<hr>\n"
             index += 1
@@ -96,6 +104,11 @@ module Mdlint
             index = close_index
           when :code_inline
             output << "<code>#{escape(token.content.strip)}</code>"
+          when :math_inline
+            output << "<span class=\"math-inline\">#{escape(token.content)}</span>"
+          when :footnote_ref
+            label = escape_attribute(token.attrs[:label])
+            output << "<sup><a href=\"#fn-#{label}\">#{label}</a></sup>"
           when :link_open
             close_index = find_close(tokens, index, :link_close)
             href = escape_attribute(token.attrs[:href].to_s)

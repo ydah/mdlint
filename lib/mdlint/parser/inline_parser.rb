@@ -30,7 +30,17 @@ module Mdlint
         while pos < content.length
           remaining = content[pos..]
 
-          if (match = remaining.match(/\A\\([\\`*_\[\]()#+\-.!{}<>])/))
+          if (match = remaining.match(/\A\[\^([^\]]+)\]/))
+            flush_text(text_buffer, tokens)
+            text_buffer = ""
+            tokens << Token.new(type: :footnote_ref, attrs: { label: match[1].downcase })
+            pos += match[0].length
+          elsif (match = remaining.match(/\A\$([^$\n]+)\$/))
+            flush_text(text_buffer, tokens)
+            text_buffer = ""
+            tokens << Token.new(type: :math_inline, content: match[1])
+            pos += match[0].length
+          elsif (match = remaining.match(/\A\\([\\`*_\[\]()#+\-.!{}<>])/))
             flush_text(text_buffer, tokens)
             text_buffer = ""
             tokens << Token.new(type: :text, content: match[1])

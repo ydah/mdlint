@@ -101,6 +101,7 @@ Options:
         --format FORMAT       Lint output: text, json, sarif, github, checkstyle, junit
         --stdin-filename NAME Filename to use for stdin diagnostics
         --dialect DIALECT     Markdown dialect: commonmark or gfm
+        --check-links          Check relative link and image targets
         --list-rules           List available lint rules
         --explain RULE        Explain a lint rule
         --require PATH        Load a custom rule file
@@ -175,6 +176,7 @@ Key rules:
 - No multiple consecutive blank lines
 - First line should be a top-level heading
 - Lines should respect MD013's configured length
+- Relative links can be checked with `mdlint lint --check-links` (external URLs are not requested).
 
 Inline directives can suppress diagnostics for a section or one line:
 
@@ -227,6 +229,7 @@ Inline elements:
 - Hard breaks (backslash + newline)
 
 With `dialect: gfm`, tables, task lists, strikethrough, and bare URL autolinks are supported.
+Footnote definitions/references and fenced math blocks are preserved and included in HTML output.
 
 ## Development
 
