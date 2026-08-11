@@ -39,8 +39,9 @@ module Mdlint
         source.each_line.with_index(1) do |line, line_number|
           current_fence = line.match(FENCE_REGEXP)
           if current_fence
-            marker = current_fence[1]
-            if fence && marker[0] == fence[0] && marker.length >= fence.length
+            marker = current_fence[1].to_s
+
+            if !fence.nil? && marker.to_s[0] == fence.to_s[0] && marker.to_s.length >= fence.to_s.length
               fence = nil
             elsif fence.nil?
               fence = marker

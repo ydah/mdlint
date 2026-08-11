@@ -1,0 +1,322 @@
+# Dynamic implementation boundaries.  The public API remains precisely typed in
+# mdlint.rbs; parser and rule extension points intentionally accept arbitrary
+# option hashes and plugin-defined subclasses.
+
+module Mdlint
+  module TextWidth
+    def self.measure: (untyped text) -> Integer
+    def self.take: (untyped text, untyped maximum) -> String
+    def self.wide?: (untyped codepoint) -> bool
+  end
+
+  module Toc
+    def update: (untyped source, ?untyped options) -> String
+    def table_of_contents: (untyped tokens) -> Array[String]
+    def marker_pairs: (untyped lines) -> Array[Array[Integer]]
+    def slugify: (untyped value, untyped counts) -> String
+    def self.table_of_contents: (untyped tokens) -> Array[String]
+    def self.marker_pairs: (untyped lines) -> Array[Array[Integer]]
+    def self.slugify: (untyped value, untyped counts) -> String
+  end
+
+  class CacheStore
+    def initialize: (untyped path) -> void
+    def key: (untyped source, untyped options) -> String
+    def fetch: (untyped key) -> untyped
+    def store: (untyped key, untyped violations) -> void
+    def save: () -> void
+    def load_data: () -> untyped
+    def canonicalize: (untyped value) -> untyped
+    def symbolize: (untyped value) -> untyped
+  end
+
+  class Config
+    def load: () -> untyped
+    def merge: (untyped cli_options) -> untyped
+    def find_config_file: () -> String?
+    def load_config_file: (untyped path) -> untyped
+    def normalize_options: (untyped parsed) -> untyped
+    def normalize_rules: (untyped rules) -> untyped
+    def normalize_wrap: (untyped value) -> untyped
+    def normalize_command_map: (untyped value) -> untyped
+    def normalize_timeout: (untyped value) -> Integer
+    def merge_options: (untyped file_options) -> untyped
+  end
+
+  class Dialect
+  end
+
+  module Renderer
+    class MdRenderer
+      def initialize: (?untyped options) -> void
+      def render: (untyped tokens) -> String
+      def apply_end_of_line: (untyped text) -> String
+      def collect_reference_definitions: (untyped tokens) -> untyped
+      def append_reference_definitions: (untyped output) -> untyped
+      def render_tokens: (untyped tokens, untyped output) -> untyped
+      def render_heading: (untyped tokens, untyped start_index, untyped output) -> untyped
+      def render_paragraph: (untyped tokens, untyped start_index, untyped output) -> untyped
+      def wrap_text: (untyped text) -> String
+      def wrap_at_width: (untyped text, untyped width) -> String
+      def split_to_width: (untyped text, untyped width) -> Array[String]
+      def render_bullet_list: (untyped tokens, untyped start_index, untyped output) -> untyped
+      def render_ordered_list: (untyped tokens, untyped start_index, untyped output) -> untyped
+      def render_list_item: (untyped tokens, untyped start_index, untyped output, untyped prefix) -> untyped
+      def render_table: (untyped token, untyped output) -> untyped
+      def render_table_row: (untyped row, untyped widths, untyped alignments) -> String
+      def table_separator: (untyped alignment, untyped width) -> String
+      def collect_paragraph_content: (untyped tokens, untyped start_index, untyped content_array) -> untyped
+      def render_blockquote: (untyped tokens, untyped start_index, untyped output) -> untyped
+      def render_fence: (untyped token, untyped output) -> untyped
+      def render_code_block: (untyped token, untyped output) -> untyped
+      def render_inline: (untyped token) -> String
+      def render_inline_tokens: (untyped tokens) -> String
+      def find_close_token: (untyped tokens, untyped start_index, untyped close_type) -> untyped
+      def format_link_url: (untyped url) -> String
+    end
+
+    class HtmlRenderer
+      def initialize: (?untyped options) -> void
+      def render: (untyped tokens) -> String
+      def render_sequence: (untyped tokens, untyped index, ?untyped closing_type) -> untyped
+      def render_until_inline: (untyped tokens, untyped index, untyped closing_type) -> untyped
+      def render_inline: (untyped token) -> String
+      def render_inline_tokens: (untyped tokens) -> String
+      def render_table: (untyped token) -> String
+      def render_directive: (untyped token) -> String
+      def render_cell: (untyped value) -> String
+      def fenced_code: (untyped token) -> String
+      def task_checkbox: (untyped checked) -> String
+      def find_close: (untyped tokens, untyped index, untyped close_type) -> untyped
+      def escape: (untyped value) -> String
+      def escape_attribute: (untyped value) -> String
+    end
+  end
+
+  module Parser
+    def self.parse_inline_tokens: (untyped tokens, untyped options) -> untyped
+
+    class State
+      attr_accessor tokens: untyped
+      def initialize: (untyped src) -> void
+      def eof?: () -> bool
+      def current_line: () -> untyped
+      def next_line: () -> untyped
+      def skip_blank_lines: () -> untyped
+      def blank_line?: (?untyped line_num) -> bool
+      def remaining_lines: () -> untyped
+      def peek_line: (?untyped offset) -> untyped
+      def build_line_offsets: () -> untyped
+    end
+
+    class BlockParser
+      def initialize: (?untyped options) -> void
+      def parse: (untyped src) -> untyped
+      def parse_block: (untyped state) -> untyped
+      def parse_directive: (untyped state) -> untyped
+      def parse_math_block: (untyped state) -> untyped
+      def parse_table: (untyped state) -> untyped
+      def table_delimiter?: (untyped line) -> bool
+      def table_row?: (untyped line) -> bool
+      def split_table_row: (untyped line) -> untyped
+      def table_alignment: (untyped cell) -> untyped
+      def parse_front_matter: (untyped state) -> untyped
+      def front_matter_markers: (untyped opener) -> untyped
+      def parse_blank_line: (untyped state) -> untyped
+      def parse_atx_heading: (untyped state) -> untyped
+      def parse_setext_heading: (untyped state) -> untyped
+      def parse_fence: (untyped state) -> untyped
+      def parse_hr: (untyped state) -> untyped
+      def parse_blockquote: (untyped state) -> untyped
+      def parse_bullet_list: (untyped state) -> untyped
+      def parse_ordered_list: (untyped state) -> untyped
+      def parse_list_items: (untyped state, untyped pattern, untyped marker) -> untyped
+      def parse_ordered_list_items: (untyped state, untyped delimiter) -> untyped
+      def parse_html_block: (untyped state) -> untyped
+      def parse_code_block: (untyped state) -> untyped
+      def parse_reference_definition: (untyped state) -> untyped
+      def parse_footnote_definition: (untyped state) -> untyped
+      def parse_paragraph: (untyped state) -> untyped
+      def task_attributes: (untyped content) -> untyped
+      def strip_task_marker: (untyped content) -> untyped
+      def alert_attributes: (untyped content_lines) -> untyped
+    end
+
+    class InlineParser
+      def initialize: (?untyped options) -> void
+      def parse: (untyped content) -> untyped
+      def parse_inline: (untyped content, untyped tokens) -> untyped
+      def flush_text: (untyped buffer, untyped tokens) -> untyped
+    end
+  end
+
+  class ParallelRunner
+    def self.map: (untyped items, jobs: untyped) { (untyped item) -> untyped } -> untyped
+    def self.process_queue: (untyped queue, untyped results, untyped errors) { (untyped item) -> untyped } -> untyped
+  end
+
+  class CLI
+    def initialize: (untyped argv) -> void
+    def run: () -> untyped
+    def extract_command: () -> untyped
+    def parse_options: () -> untyped
+    def load_config: () -> untyped
+    def load_plugins: () -> untyped
+    def process_format: () -> untyped
+    def process_format_stdin: () -> untyped
+    def process_format_file: (untyped file) -> untyped
+    def process_lint: () -> untyped
+    def write_auto_gen_config: (untyped entries) -> untyped
+    def process_lint_stdin: () -> untyped
+    def process_lint_file: (untyped file) -> untyped
+    def cached_lint: (untyped file, untyped source) -> untyped
+    def apply_lint_fix: (untyped filename, untyped source, untyped path) -> untyped
+    def fix_requested?: () -> bool
+    def lint_output: (untyped entries) -> String
+    def fail_for?: (untyped entries) -> bool
+    def show_rule_list: () -> untyped
+    def show_rule_explanation: (untyped rule_id) -> untyped
+    def collect_files: (untyped paths) -> untyped
+    def excluded?: (untyped file) -> bool
+    def show_diff: (untyped filename, untyped original, untyped formatted) -> untyped
+    def format_options: () -> untyped
+    def lint_options: (?untyped filename) -> untyped
+    def split_rules: (untyped value) -> untyped
+    def add_code_block_command: (untyped key, untyped specification) -> untyped
+    def parse_wrap_mode: (untyped mode) -> untyped
+    def parse_level: (untyped level) -> untyped
+
+    class OutputFormatter
+      def initialize: (untyped format) -> void
+      def render: (untyped entries) -> String
+      def text: (untyped entries) -> String
+      def json: (untyped entries) -> String
+      def github: (untyped entries) -> String
+      def sarif: (untyped entries) -> String
+      def checkstyle: (untyped entries) -> String
+      def junit: (untyped entries) -> String
+      def reviewdog: (untyped entries) -> String
+      def xml_escape: (untyped value) -> String
+    end
+  end
+
+  module Linter
+    class Rule
+      attr_reader violations: untyped
+      def self.rule_id: () -> untyped
+      def self.rule_id=: (untyped value) -> untyped
+      def self.description: () -> untyped
+      def self.description=: (untyped value) -> untyped
+      def self.aliases: () -> untyped
+      def self.aliases=: (untyped value) -> untyped
+      def self.preset: () -> untyped
+      def self.preset=: (untyped value) -> untyped
+      def self.inherited: (untyped subclass) -> untyped
+      def add_violation: (message: String, line: Integer, ?column: Integer?, ?fixable: bool) -> untyped
+    end
+
+    class RuleRegistry
+      def self.clear: () -> untyped
+    end
+
+    class RuleEngine
+      def initialize: (?untyped options) -> void
+      def check: (untyped tokens, untyped source) -> untyped
+      def fix: (untyped tokens, untyped source) -> untyped
+      def active_rules: () -> untyped
+      def configured_enabled?: (untyped rule_class) -> bool
+      def explicitly_configured?: (untyped rule_class) -> bool
+      def rule_options: (untyped rule_class) -> untyped
+      def rule_setting: (untyped rule_class) -> untyped
+    end
+
+    class DirectiveFilter
+      def self.apply: (untyped violations, untyped source) -> untyped
+      def initialize: (untyped source) -> void
+      def filter: (untyped violations) -> untyped
+      def scan: (untyped source) -> untyped
+      def apply_directive: (untyped directive, untyped disabled, untyped next_line, untyped line_number) -> untyped
+      def normalize_ids: (untyped value) -> untyped
+    end
+
+    class Violation
+    end
+
+    module Rules
+      module JapaneseHelpers
+        def each_inline: (untyped tokens) { (untyped token) -> untyped } -> untyped
+        def prose_content: (untyped token) -> String
+        def line_for: (untyped token) -> Integer
+      end
+
+      class HeadingStyle < Rule
+      end
+      class HeadingIncrement < Rule
+      end
+      class NoTrailingSpaces < Rule
+      end
+      class NoMultipleBlanks < Rule
+      end
+      class FirstLineHeading < Rule
+        def directive?: (untyped token) -> bool
+      end
+      class LineLength < Rule
+      end
+      class LinkCheck < Rule
+        def heading_slugs: (untyped tokens) -> untyped
+        def check_target: (untyped target, untyped token, untyped image, untyped source) -> untyped
+        def check_external_target: (untyped target, untyped token) -> untyped
+        def check_fragment: (untyped fragment, untyped token, untyped image, untyped headings) -> untyped
+        def add_missing_target: (untyped path, untyped token) -> untyped
+        def non_markdown_file?: (untyped path) -> bool
+        def slugify: (untyped value) -> String
+      end
+      class CodeBlockSyntax < Rule
+        def line_for: (untyped token) -> Integer
+        def syntax_error: (untyped language, untyped content) -> untyped
+        def command_error: (untyped command, untyped content) -> untyped
+        def command_output: (untyped command, untyped content) -> untyped
+        def command_result: (untyped command, untyped content) -> untyped
+      end
+      class JapaneseSpacing < Rule
+        include JapaneseHelpers
+      end
+      class JapanesePunctuation < Rule
+        include JapaneseHelpers
+      end
+      class JapaneseStyle < Rule
+        include JapaneseHelpers
+      end
+      class JapaneseSentenceLength < Rule
+        include JapaneseHelpers
+      end
+      class JapaneseCommaCount < Rule
+        include JapaneseHelpers
+      end
+      class JapaneseDuplicateParticle < Rule
+        include JapaneseHelpers
+      end
+      class JapaneseWidth < Rule
+        include JapaneseHelpers
+      end
+    end
+  end
+
+  module Lsp
+    class Server
+      def initialize: (?input: untyped, ?output: untyped) -> void
+      def run: () -> untyped
+      def read_message: () -> untyped
+      def write_message: (untyped message) -> untyped
+      def handle_message: (untyped message) -> untyped
+      def response: (untyped id, untyped result) -> untyped
+      def notification: (untyped method, untyped params) -> untyped
+      def update_document: (untyped uri, untyped text) -> untyped
+      def formatting_edits: (untyped uri) -> untyped
+      def code_actions: (untyped uri) -> untyped
+      def publish_diagnostics: (untyped uri) -> untyped
+      def full_range: (untyped text) -> untyped
+      def uri_path: (untyped uri) -> untyped
+    end
+  end
+end

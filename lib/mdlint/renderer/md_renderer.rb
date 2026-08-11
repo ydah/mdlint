@@ -219,30 +219,30 @@ module Mdlint
         chunks = []
         remaining = text
         while !remaining.empty?
-          chunk = TextWidth.take(remaining, width)
+          chunk = TextWidth.take(remaining, width).to_s
           break if chunk.empty?
 
           if remaining.length > chunk.length && chunk.match?(LINE_END_PROHIBITED)
-            moved = chunk[-1]
-            chunk = chunk[0...-1]
-            remaining = moved + remaining[chunk.length + 1..]
+            moved = chunk[-1].to_s
+            chunk = chunk[0...-1].to_s
+            remaining = moved + (remaining[chunk.length + 1..] || "")
           end
 
           if remaining.match?(LINE_START_PROHIBITED)
-            first = remaining[0]
+            first = remaining[0].to_s
             first_width = TextWidth.measure(first)
             if TextWidth.measure(chunk) + first_width <= width
-              chunk += first
-              remaining = remaining[1..]
+              chunk = chunk.to_s + first
+              remaining = remaining[1..] || ""
             elsif chunk.length > 1
-              moved = chunk[-1]
-              chunk = chunk[0...-1]
-              remaining = moved + remaining
+              moved = chunk[-1].to_s
+              chunk = chunk[0...-1].to_s
+              remaining = moved + remaining.to_s
             end
           end
 
           chunks << chunk
-          remaining = remaining[chunk.length..]
+          remaining = remaining[chunk.length..] || ""
         end
         chunks
       end

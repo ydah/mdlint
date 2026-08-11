@@ -14,7 +14,9 @@ module Mdlint
       heading_tokens = Parser.parse(normalized_source, options)
       entries = table_of_contents(heading_tokens)
       replacement = entries.join("\n")
-      marker_pairs(lines).reverse_each do |start_index, end_index|
+      marker_pairs(lines).reverse_each do |pair|
+        start_index = pair.fetch(0)
+        end_index = pair.fetch(1)
         lines[(start_index + 1)...end_index] = replacement.empty? ? [] : replacement.lines(chomp: true)
       end
       lines.join(eol)

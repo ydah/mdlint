@@ -83,7 +83,8 @@ module Mdlint
         when "textDocument/didChange"
           uri = params.dig("textDocument", "uri")
           change = Array(params["contentChanges"]).last
-          update_document(uri, change && change["text"])
+          text = change.is_a?(Hash) ? change["text"] : nil
+          update_document(uri, text)
           publish_diagnostics(uri)
           nil
         when "textDocument/didClose"
@@ -165,7 +166,8 @@ module Mdlint
         return nil unless uri
         return uri unless uri.start_with?("file:")
 
-        URI.decode_www_form_component(URI.parse(uri).path)
+        path = URI.parse(uri).path
+        URI.decode_www_form_component(path.to_s)
       rescue URI::InvalidURIError
         uri
       end

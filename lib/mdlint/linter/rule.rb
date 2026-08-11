@@ -64,7 +64,8 @@ module Mdlint
           value = rule_id.to_s
           value = value.upcase if value.match?(/\Amd\d+\z/i)
           rule = @rules.find do |rule_class|
-            rule_class.rule_id == value || Array(rule_class.aliases).any? { |name| name.casecmp?(value) }
+            aliases = rule_class.aliases
+            rule_class.rule_id == value || (aliases.is_a?(Array) && aliases.any? { |name| name.is_a?(String) && name.casecmp?(value.to_s) })
           end
           rule ? rule.rule_id : value
         end

@@ -14,7 +14,7 @@ module Mdlint
           tokens.each do |token|
             next unless token.type == :heading_open
 
-            level = token.tag[1].to_i
+            level = token.tag.to_s[1].to_i
             if last_level > 0 && level > last_level + 1
               add_violation(
                 message: "Heading level jumped from h#{last_level} to h#{level}",

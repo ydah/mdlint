@@ -1,4 +1,17 @@
 target :lib do
   signature "sig"
-  check "lib/mdlint.rb"
+  library "cgi"
+  library "digest"
+  library "fileutils"
+  library "json"
+  library "net-http"
+  library "open3"
+  library "optparse"
+  library "ripper"
+  library "shellwords"
+  library "stringio"
+  library "timeout"
+  library "uri"
+  library "yaml"
+  check "lib"
 end

@@ -24,7 +24,8 @@ module Mdlint
               next unless child.type == :link_open || child.type == :image
 
               target = child.attrs[:href] || child.attrs[:src]
-              check_target(target, token, child.type == :image, source)
+              image = child.is_a?(Token) && child.type == :image
+              check_target(target, token, image, source)
             end
           end
           @violations
@@ -89,15 +90,19 @@ module Mdlint
 
         def check_external_target(target, token)
           uri = URI.parse(target)
+          host = uri.host.to_s
+          request_path = uri.path.to_s
+          request_path = "/" if request_path.empty?
+          request_path += "?#{uri.query}" if uri.query
           response = Net::HTTP.start(
-            uri.host,
+            host,
             uri.port,
             use_ssl: uri.scheme == "https",
             open_timeout: 3,
             read_timeout: 3
           ) do |http|
-            result = http.head(uri.request_uri)
-            result.is_a?(Net::HTTPMethodNotAllowed) ? http.get(uri.request_uri) : result
+            result = http.head(request_path)
+            result.is_a?(Net::HTTPMethodNotAllowed) ? http.get(request_path) : result
           end
           return if response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
 

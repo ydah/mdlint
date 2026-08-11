@@ -34,11 +34,15 @@ module Mdlint
             next unless start_line && end_line && end_line == start_line + 2
             next unless lines[start_line] && lines[start_line + 1]
 
-            prefix, content = lines[start_line].match(/\A(\s*(?:>\s*)*)(.*?)(?:\r?\n)?\z/).captures
+            match = lines[start_line].match(/\A(\s*(?:>\s*)*)(.*?)(?:\r?\n)?\z/)
+            next unless match
+
+            prefix = match[1].to_s
+            content = match[2].to_s
             newline = lines[start_line].end_with?("\r\n") ? "\r\n" : "\n"
             level = token.tag == "h1" ? "#" : "##"
             lines[start_line] = "#{prefix}#{level} #{content.strip}#{newline}"
-            lines[start_line + 1] = nil
+            lines.delete_at(start_line + 1)
           end
 
           lines.compact.join

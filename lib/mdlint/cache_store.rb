@@ -20,7 +20,17 @@ module Mdlint
     def fetch(key)
       @mutex.synchronize do
         values = @data[key]
-        values&.map { |value| Linter::Violation.new(**symbolize(value)) }
+        values&.map do |value|
+          attributes = symbolize(value)
+          Linter::Violation.new(
+            rule_id: attributes[:rule_id].to_s,
+            message: attributes[:message].to_s,
+            line: attributes[:line].to_i,
+            column: attributes[:column],
+            severity: (attributes[:severity] || :warning).to_sym,
+            fixable: attributes[:fixable] == true
+          )
+        end
       end
     end
 
