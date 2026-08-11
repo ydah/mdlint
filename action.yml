@@ -12,6 +12,18 @@ inputs:
     description: Ruby version used by the action
     required: false
     default: '3.2'
+  reviewdog:
+    description: Run diagnostics through reviewdog
+    required: false
+    default: 'false'
+  reviewdog-reporter:
+    description: reviewdog reporter name
+    required: false
+    default: github-pr-check
+  reviewdog-filter-mode:
+    description: reviewdog filter mode
+    required: false
+    default: added
 runs:
   using: composite
   steps:
@@ -22,6 +34,16 @@ runs:
     - name: Install mdlint
       shell: bash
       run: gem install mdlint --no-document
+    - name: Set up reviewdog
+      if: inputs.reviewdog == 'true'
+      uses: reviewdog/action-setup@v1
+      with:
+        reviewdog_version: latest
     - name: Run mdlint
       shell: bash
-      run: mdlint ${{ inputs.args }}
+      run: |
+        if [ "${{ inputs.reviewdog }}" = "true" ]; then
+          mdlint ${{ inputs.args }} --format reviewdog | reviewdog -f=rdjson -reporter=${{ inputs.reviewdog-reporter }} -filter-mode=${{ inputs.reviewdog-filter-mode }}
+        else
+          mdlint ${{ inputs.args }}
+        fi

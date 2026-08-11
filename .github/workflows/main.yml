@@ -32,4 +32,20 @@ jobs:
         run: gem install rbs -v 4.1.2 --no-document && rbs validate
       - name: Run Steep
         if: matrix.ruby == '3.3'
-        run: gem install steep -v 2.0.0 --no-document && steep check --no-daemon
+        run: gem install steep -v 2.0.0 --no-document && steep check --no-daemon --severity-level error
+  commonmark:
+    runs-on: ubuntu-latest
+    name: CommonMark compatibility
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Fetch official fixtures
+        run: ruby script/fetch_commonmark_spec.rb spec/fixtures/commonmark.json
+      - name: Run all fixtures
+        run: ruby script/commonmark_compatibility.rb spec/fixtures/commonmark.json

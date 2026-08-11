@@ -25,6 +25,8 @@ module Mdlint
           checkstyle(entries)
         when "junit"
           junit(entries)
+        when "reviewdog", "rdjson"
+          reviewdog(entries)
         else
           text(entries)
         end
@@ -116,6 +118,28 @@ module Mdlint
           "    <testcase name=\"#{xml_escape(name)}\"><failure message=\"#{xml_escape(violation.message)}\"/></testcase>"
         end
         "<testsuite name=\"mdlint\" tests=\"#{entries.length}\" failures=\"#{entries.length}\">\n#{cases.join("\n")}\n</testsuite>\n"
+      end
+
+      def reviewdog(entries)
+        document = {
+          source: { name: "mdlint" },
+          diagnostics: entries.map do |entry|
+            violation = entry[:violation]
+            column = violation.column || 1
+            {
+              message: "[#{violation.rule_id}] #{violation.message}",
+              location: {
+                path: entry[:filename],
+                range: {
+                  start: { line: violation.line, column: column },
+                  end: { line: violation.line, column: column + 1 }
+                }
+              },
+              severity: violation.severity.to_s.upcase
+            }
+          end
+        }
+        JSON.generate(document) + "\n"
       end
 
       def xml_escape(value)

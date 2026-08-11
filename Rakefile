@@ -9,6 +9,11 @@ namespace :commonmark do
   task :fetch do
     sh "ruby script/fetch_commonmark_spec.rb"
   end
+
+  task :compatibility do
+    sh "ruby script/fetch_commonmark_spec.rb spec/fixtures/commonmark.json"
+    sh "ruby script/commonmark_compatibility.rb spec/fixtures/commonmark.json"
+  end
 end
 
 task default: :spec
