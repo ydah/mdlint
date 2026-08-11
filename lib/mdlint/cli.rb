@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "optparse"
+require "yaml"
 require_relative "../mdlint"
 require_relative "config"
 require_relative "cli/output_formatter"
@@ -19,6 +20,7 @@ module Mdlint
     def run
       parse_options
       load_config
+      load_plugins
       return show_rule_list if @options[:list_rules]
       return show_rule_explanation(@options[:explain]) if @options[:explain]
 
@@ -75,6 +77,10 @@ module Mdlint
         opts.on("--dialect DIALECT", "Markdown dialect: commonmark or gfm") { |dialect| @cli_options[:dialect] = dialect.to_sym }
         opts.on("--list-rules", "List available lint rules") { @cli_options[:list_rules] = true }
         opts.on("--explain RULE", "Explain a lint rule") { |rule| @cli_options[:explain] = rule }
+        opts.on("--require PATH", "Load a custom rule file") { |path| (@cli_options[:require] ||= []) << path }
+        opts.on("--auto-gen-config [PATH]", "Write a config disabling current violations") do |path|
+          @cli_options[:auto_gen_config] = path || ".mdlint_todo.yml"
+        end
         opts.on("-v", "--version", "Show version") do
           puts "mdlint #{Mdlint::VERSION}"
           exit 0
@@ -144,7 +150,27 @@ module Mdlint
                 end
 
       print lint_output(entries) unless @options[:quiet]
+      return write_auto_gen_config(entries) if @options[:auto_gen_config]
+
       fail_for?(entries) ? exit(1) : 0
+    end
+
+    def load_plugins
+      paths = Array(@options[:plugins]) + Array(@options[:require])
+      paths.each do |path|
+        require File.expand_path(path, Dir.pwd)
+      rescue LoadError, StandardError => error
+        warn "Warning: Could not load rule file #{path}: #{error.message}"
+        exit 2
+      end
+    end
+
+    def write_auto_gen_config(entries)
+      rules = entries.to_h { |entry| [entry[:violation].rule_id, false] }
+      path = @options[:auto_gen_config]
+      File.write(path, YAML.dump("rules" => rules))
+      puts "Wrote #{path}" unless @options[:quiet]
+      0
     end
 
     def process_lint_stdin

@@ -21,7 +21,8 @@ module Mdlint
       severity: nil,
       fail_level: :warning,
       format: nil,
-      dialect: :commonmark
+      dialect: :commonmark,
+      plugins: []
     }.freeze
 
     attr_reader :options
@@ -97,6 +98,7 @@ module Mdlint
       options[:fail_level] = parsed[:fail_level].to_sym if parsed[:fail_level]
       options[:format] = parsed[:format].to_s if parsed[:format]
       options[:dialect] = parsed[:dialect].to_sym if parsed[:dialect]
+      options[:plugins] = Array(parsed[:plugins]).map(&:to_s) if parsed[:plugins]
 
       if parsed[:exclude]
         options[:exclude] = Array(parsed[:exclude])

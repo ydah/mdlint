@@ -24,7 +24,10 @@
 - Linting with configurable rules and clear violations
 - Auto-formatting that follows mdformat conventions
 - CLI for CI-friendly workflows and local formatting
-- Simple YAML configuration file
+- YAML/TOML/JSON front matter preservation
+- GFM tables, task lists, strikethrough, and configurable dialects
+- Text, JSON, SARIF, Checkstyle, JUnit, and GitHub diagnostic output
+- Optional HTML rendering through the Ruby API
 
 ## Quickstart
 
@@ -39,6 +42,12 @@ mdlint --check README.md
 
 # show diffs
 mdlint --diff README.md
+
+# lint and report violations
+mdlint lint docs/
+
+# fix fixable lint violations
+mdlint fix --dry-run docs/
 ```
 
 ## Installation
@@ -63,12 +72,16 @@ Command line:
 mdlint README.md docs/
 mdlint --check README.md
 mdlint --diff README.md
+mdlint lint README.md
+mdlint fix README.md
 ```
 
 Options:
 
 ```
-Usage: mdlint [options] [paths...]
+Usage: mdlint [command] [options] [paths...]
+
+Commands: format (default), lint, fix
 
 Options:
     -c, --check              Check if files are formatted, exit with error if not
@@ -77,7 +90,21 @@ Options:
     -e, --exclude PATTERN    Exclude files matching pattern
     -w, --wrap MODE          Paragraph wrapping: keep (default), no, or INTEGER
         --number             Use consecutive numbering for ordered lists
-        --end-of-line MODE   End of line: lf (default), crlf, keep
+    --end-of-line MODE   End of line: lf (default), crlf, keep
+        --fix                 Fix fixable lint violations
+        --fix-only            Apply fixes without reporting remaining violations
+        --dry-run             Do not write fixes to files
+        --disable RULES       Disable comma-separated rules
+        --rule RULES          Run only comma-separated rules
+        --severity LEVEL      Default severity: error, warning, or info
+        --fail-level LEVEL    Fail at severity: error, warning, or info
+        --format FORMAT       Lint output: text, json, sarif, github, checkstyle, junit
+        --stdin-filename NAME Filename to use for stdin diagnostics
+        --dialect DIALECT     Markdown dialect: commonmark or gfm
+        --list-rules           List available lint rules
+        --explain RULE        Explain a lint rule
+        --require PATH        Load a custom rule file
+        --auto-gen-config     Write a config disabling current violations
     -v, --version            Show version
     -h, --help               Show help
 ```
@@ -96,6 +123,10 @@ violations = Mdlint.lint("# Heading\n\n\n\nParagraph")
 violations.each { |v| puts v }
 
 violations = Mdlint.lint_file("README.md")
+
+fixed = Mdlint.fix("Line  \n")
+html = Mdlint.html("# Hello\n\n**world**\n")
+gfm_tokens = Mdlint.parse("- [x] Done\n", dialect: :gfm)
 ```
 
 ## Configuration
@@ -113,6 +144,25 @@ quiet: false
 exclude:
   - "vendor/**/*.md"
   - "node_modules/**/*.md"
+
+# Markdown dialect
+dialect: commonmark # or gfm
+
+# Rule configuration (markdownlint-compatible IDs and aliases are accepted)
+rules:
+  MD013:
+    enabled: true
+    line_length: 120
+    ignore_code_blocks: true
+  MD009: false
+
+# Severity and CI threshold
+severity: warning
+fail_level: error
+
+# Custom rule files
+plugins:
+  - "./rules/my_rule.rb"
 ```
 
 ## Lint Rules
@@ -124,6 +174,17 @@ Key rules:
 - No trailing spaces
 - No multiple consecutive blank lines
 - First line should be a top-level heading
+- Lines should respect MD013's configured length
+
+Inline directives can suppress diagnostics for a section or one line:
+
+```markdown
+<!-- mdlint-disable MD013 -->
+long content is allowed here
+<!-- mdlint-enable MD013 -->
+<!-- mdlint-disable-next-line MD001 -->
+### Intentional jump
+```
 
 ## Formatting Style
 
@@ -164,6 +225,8 @@ Inline elements:
 - Images (`![alt](src)`)
 - Autolinks (`<https://example.com>`)
 - Hard breaks (backslash + newline)
+
+With `dialect: gfm`, tables, task lists, strikethrough, and bare URL autolinks are supported.
 
 ## Development
 

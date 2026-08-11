@@ -1,0 +1,6 @@
+- id: mdlint
+  name: mdlint
+  description: Check Markdown formatting and lint violations
+  entry: mdlint --check
+  language: system
+  files: \\.md$
