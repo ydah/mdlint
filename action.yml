@@ -28,22 +28,27 @@ runs:
   using: composite
   steps:
     - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
       with:
         ruby-version: ${{ inputs.ruby-version }}
     - name: Install mdlint
       shell: bash
-      run: gem install mdlint --no-document
+      run: gem install mdlint --no-document # zizmor: ignore[adhoc-packages]
     - name: Set up reviewdog
       if: inputs.reviewdog == 'true'
-      uses: reviewdog/action-setup@v1
+      uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1
       with:
         reviewdog_version: latest
     - name: Run mdlint
       shell: bash
+      env:
+        MDLINT_ARGS: ${{ inputs.args }}
+        REVIEWDOG_ENABLED: ${{ inputs.reviewdog }}
+        REVIEWDOG_REPORTER: ${{ inputs.reviewdog-reporter }}
+        REVIEWDOG_FILTER_MODE: ${{ inputs.reviewdog-filter-mode }}
       run: |
-        if [ "${{ inputs.reviewdog }}" = "true" ]; then
-          mdlint ${{ inputs.args }} --format reviewdog | reviewdog -f=rdjson -reporter=${{ inputs.reviewdog-reporter }} -filter-mode=${{ inputs.reviewdog-filter-mode }}
+        if [ "$REVIEWDOG_ENABLED" = "true" ]; then
+          mdlint $MDLINT_ARGS --format reviewdog | reviewdog -f=rdjson "-reporter=$REVIEWDOG_REPORTER" "-filter-mode=$REVIEWDOG_FILTER_MODE"
         else
-          mdlint ${{ inputs.args }}
+          mdlint $MDLINT_ARGS
         fi
