@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en" class="bg-zinc-50">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#fafafa">
+    <meta name="description" content="mdlint is a pure Ruby Markdown linter and formatter with zero external dependencies. Keep local files and CI consistent with one command.">
+    <meta property="og:title" content="mdlint — Markdown, kept in line.">
+    <meta property="og:description" content="A pure Ruby Markdown linter and formatter with zero external dependencies.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ydah.github.io/mdlint/">
+    <meta name="twitter:card" content="summary">
+    <title>mdlint — Markdown, kept in line.</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="min-h-dvh overflow-x-hidden bg-zinc-50 font-['IBM_Plex_Sans'] text-zinc-950 antialiased">
+    <a class="sr-only rounded-md bg-white px-4 py-2 font-medium focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2" href="#main">Skip to content</a>
+
+    <header class="border-b border-zinc-200 bg-zinc-50">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+        <a class="flex items-center gap-3 rounded-sm font-['IBM_Plex_Mono'] text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-4" href="#main" aria-label="mdlint home">
+          <span class="flex size-8 items-center justify-center bg-red-600 text-xl text-white" aria-hidden="true">#</span>
+          mdlint
+        </a>
+        <nav class="flex items-center gap-3 sm:gap-6" aria-label="Main navigation">
+          <a class="hidden rounded-sm text-sm font-medium text-zinc-600 hover:text-zinc-950 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-4 sm:inline" href="#features">Features</a>
+          <a class="rounded-md bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2" href="https://github.com/ydah/mdlint">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="mx-auto max-w-7xl px-5 pb-20 pt-12 sm:px-8 sm:pb-28 sm:pt-20 lg:px-12 lg:pb-36">
+        <div class="grid items-center gap-16 lg:grid-cols-2 lg:gap-20">
+          <div>
+            <p class="mb-8 inline-flex items-center gap-3 border-l-4 border-red-600 pl-4 text-sm font-medium text-zinc-700">
+              Pure Ruby <span class="text-zinc-400" aria-hidden="true">/</span> Ruby 3.2+ <span class="text-zinc-400" aria-hidden="true">/</span> Zero deps
+            </p>
+            <div class="flex items-start gap-4 sm:gap-6">
+              <span class="mt-1 font-['IBM_Plex_Mono'] text-5xl font-semibold leading-none text-red-600 sm:text-7xl" aria-hidden="true">#</span>
+              <div class="min-w-0">
+                <h1 class="max-w-2xl text-balance text-4xl font-semibold leading-none sm:text-5xl">
+                  <span class="block whitespace-nowrap">Markdown,</span><span class="mt-2 block whitespace-nowrap">kept in line.</span>
+                </h1>
+                <p class="mt-8 max-w-xl text-pretty text-lg leading-8 text-zinc-600 sm:text-xl sm:leading-9">
+                  One tool for linting, formatting, and CI. mdlint finds inconsistencies, fixes them, and keeps every file to the same standard.
+                </p>
+              </div>
+            </div>
+            <div class="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a class="inline-flex items-center justify-center rounded-md bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2" href="#install">Install mdlint</a>
+              <a class="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2" href="https://github.com/ydah/mdlint#quickstart">Read the quickstart</a>
+            </div>
+          </div>
+
+          <div class="relative min-w-0" aria-label="Example mdlint diagnostics">
+            <div class="absolute -left-4 bottom-8 top-8 w-1 bg-red-600 sm:-left-6" aria-hidden="true"></div>
+            <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+              <div class="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+                <span class="font-['IBM_Plex_Mono'] text-sm font-medium">README.md</span>
+                <span class="rounded-full bg-red-50 px-3 py-1 font-['IBM_Plex_Mono'] text-xs font-medium text-red-700 tabular-nums">2 issues</span>
+              </div>
+              <div class="grid grid-cols-[auto_1fr] font-['IBM_Plex_Mono'] text-sm leading-7">
+                <div class="select-none border-r border-zinc-200 bg-zinc-50 px-4 py-5 text-right text-zinc-400 tabular-nums" aria-hidden="true">
+                  12<br>13<br>14<br>15<br>16<br>17<br>18
+                </div>
+                <div class="overflow-x-auto px-5 py-5">
+                  <pre><code><span class="text-zinc-400">##</span> Installation
+
+gem install mdlint<span class="bg-red-50 text-red-700">  </span>
+
+<span class="text-zinc-400">```bash</span>
+mdlint lint docs/
+<span class="text-zinc-400">```</span></code></pre>
+                </div>
+              </div>
+              <div class="border-t border-zinc-200 bg-zinc-950 px-5 py-5 font-['IBM_Plex_Mono'] text-sm leading-6 text-zinc-100">
+                <p><span class="text-red-400">12:19</span> MD009 Trailing spaces</p>
+                <p><span class="text-red-400">18:1</span> MD013 Line length</p>
+                <p class="mt-4 text-zinc-400">$ mdlint fix README.md</p>
+                <p><span class="text-red-400">Fixed:</span> README.md</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="install" class="border-y border-zinc-200 bg-white">
+        <div class="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 md:grid-cols-[1fr_auto] md:items-center lg:px-12">
+          <div>
+            <h2 class="text-balance text-2xl font-semibold">If you have Ruby, you're ready.</h2>
+            <p class="mt-2 max-w-2xl text-pretty leading-7 text-zinc-600">No C extensions. No Rust toolchain. The same command runs locally, in CI, and in GitHub Actions.</p>
+          </div>
+          <code class="overflow-x-auto rounded-md bg-zinc-950 px-5 py-4 font-['IBM_Plex_Mono'] text-sm text-white"><span class="select-none text-zinc-500">$ </span>gem install mdlint</code>
+        </div>
+      </section>
+
+      <section id="features" class="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-12">
+        <div class="max-w-3xl">
+          <h2 class="text-balance text-4xl font-semibold leading-tight sm:text-5xl">One standard, from draft to CI.</h2>
+          <p class="mt-5 max-w-2xl text-pretty text-lg leading-8 text-zinc-600">Spend less time remembering rules and more time writing.</p>
+        </div>
+
+        <ol class="mt-16 border-t border-zinc-300">
+          <li class="grid gap-4 border-b border-zinc-300 py-8 sm:grid-cols-[4rem_12rem_1fr] sm:items-baseline sm:gap-8">
+            <span class="font-['IBM_Plex_Mono'] text-sm font-semibold text-red-600 tabular-nums">01</span>
+            <h3 class="text-balance text-2xl font-semibold">Find</h3>
+            <p class="max-w-2xl text-pretty leading-7 text-zinc-600">29 built-in rules pinpoint issues in headings, spacing, line length, links, and code blocks.</p>
+          </li>
+          <li class="grid gap-4 border-b border-zinc-300 py-8 sm:grid-cols-[4rem_12rem_1fr] sm:items-baseline sm:gap-8">
+            <span class="font-['IBM_Plex_Mono'] text-sm font-semibold text-red-600 tabular-nums">02</span>
+            <h3 class="text-balance text-2xl font-semibold">Format</h3>
+            <p class="max-w-2xl text-pretty leading-7 text-zinc-600">Formatting aligned with mdformat conventions makes lists, code fences, line endings, and GFM tables reproducible.</p>
+          </li>
+          <li class="grid gap-4 border-b border-zinc-300 py-8 sm:grid-cols-[4rem_12rem_1fr] sm:items-baseline sm:gap-8">
+            <span class="font-['IBM_Plex_Mono'] text-sm font-semibold text-red-600 tabular-nums">03</span>
+            <h3 class="text-balance text-2xl font-semibold">Enforce</h3>
+            <p class="max-w-2xl text-pretty leading-7 text-zinc-600">GitHub diagnostics, SARIF, Checkstyle, JUnit, and reviewdog output keep noise out of review.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="bg-zinc-950 text-white">
+        <div class="mx-auto grid max-w-7xl gap-16 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-2 lg:px-12">
+          <div>
+            <span class="font-['IBM_Plex_Mono'] text-6xl font-semibold text-red-500" aria-hidden="true">{ }</span>
+            <h2 class="mt-8 max-w-xl text-balance text-4xl font-semibold leading-tight sm:text-5xl">Fine-grained rules. One config file.</h2>
+            <p class="mt-6 max-w-xl text-pretty text-lg leading-8 text-zinc-300">Choose rules with markdownlint-compatible IDs. Set severity and CI failure thresholds per project.</p>
+            <ul class="mt-10 grid gap-4 text-sm text-zinc-300 sm:grid-cols-2">
+              <li class="border-l-2 border-red-600 pl-4">CommonMark / GFM</li>
+              <li class="border-l-2 border-red-600 pl-4">YAML / TOML / JSON front matter</li>
+              <li class="border-l-2 border-red-600 pl-4">Japanese technical-writing preset</li>
+              <li class="border-l-2 border-red-600 pl-4">LSP diagnostics, formatting, and quick fixes</li>
+            </ul>
+          </div>
+
+          <div class="overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900">
+            <div class="border-b border-zinc-700 px-5 py-4 font-['IBM_Plex_Mono'] text-sm text-zinc-300">.mdlint.yml</div>
+            <pre class="overflow-x-auto p-5 font-['IBM_Plex_Mono'] text-sm leading-7 text-zinc-200"><code><span class="text-red-400">dialect:</span> gfm
+<span class="text-red-400">preset:</span> japanese
+<span class="text-red-400">check_links:</span> true
+<span class="text-red-400">cache:</span> true
+
+<span class="text-red-400">rules:</span>
+  <span class="text-red-400">MD013:</span>
+    <span class="text-red-400">enabled:</span> true
+    <span class="text-red-400">line_length:</span> 120
+
+<span class="text-red-400">fail_level:</span> error</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:px-12">
+        <div class="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+          <div>
+            <h2 class="text-balance text-4xl font-semibold leading-tight sm:text-5xl">Fits the workflow you already have.</h2>
+          </div>
+          <dl class="divide-y divide-zinc-300 border-y border-zinc-300">
+            <div class="grid gap-2 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+              <dt class="font-semibold">Editor</dt>
+              <dd class="text-pretty leading-7 text-zinc-600">Get diagnostics, formatting, and quick fixes over LSP.</dd>
+            </div>
+            <div class="grid gap-2 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+              <dt class="font-semibold">Terminal</dt>
+              <dd class="text-pretty leading-7 text-zinc-600">Run lint, fix, or format for the job at hand.</dd>
+            </div>
+            <div class="grid gap-2 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+              <dt class="font-semibold">CI</dt>
+              <dd class="text-pretty leading-7 text-zinc-600">Scale to larger docs with machine-readable output, parallel jobs, and caching.</dd>
+            </div>
+            <div class="grid gap-2 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+              <dt class="font-semibold">Ruby API</dt>
+              <dd class="text-pretty leading-7 text-zinc-600">Call parse, lint, fix, and HTML rendering directly from your application.</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="border-t border-zinc-200 bg-red-50">
+        <div class="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+          <div class="max-w-3xl">
+            <h2 class="text-balance text-4xl font-semibold leading-tight sm:text-5xl">Bring your next Markdown file into line.</h2>
+            <p class="mt-5 max-w-2xl text-pretty text-lg leading-8 text-zinc-700">Install the gem, then point mdlint at a file.</p>
+            <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+              <a class="inline-flex items-center justify-center rounded-md bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2" href="https://rubygems.org/gems/mdlint">Get it on RubyGems</a>
+              <a class="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2" href="https://github.com/ydah/mdlint">View source</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-zinc-200 bg-white">
+      <div class="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+        <p class="font-['IBM_Plex_Mono'] font-medium text-zinc-900">mdlint</p>
+        <p>MIT License <span class="mx-2 text-zinc-300" aria-hidden="true">/</span> Built for Markdown that stays consistent.</p>
+      </div>
+    </footer>
+  </body>
+</html>
